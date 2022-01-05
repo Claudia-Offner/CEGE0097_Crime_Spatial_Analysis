@@ -27,9 +27,9 @@ library(forcats)
 
 #### 1. LOAD DATA ####
 # Open csv files
-ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv')
-crime <- read.csv(file='Data/2016-06-metropolitan-street.csv')
-pp <- read.csv(file='Data/2016-police-perceptions.csv')
+ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
+crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
+pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 
 
 # Open shape files
@@ -690,6 +690,8 @@ tm_shape(ss_ward2) + tm_polygons(col="Ii_z", palette="-RdBu", style="quantile")
 
 # ...Here we are looking at P values where the z score is not equal to the expected (E) score
 # specifically -> unadjusted p values
+
+#### THIS IS WHERE THE CODE STOPS RUNNING FOR ME (Claudia) #####
 ss_ward2$Ii_p_unadjusted <- Ii[,"Pr(z != E(Ii))"]  # puts all p values into separate subcolumn of ss_ward2
 
 

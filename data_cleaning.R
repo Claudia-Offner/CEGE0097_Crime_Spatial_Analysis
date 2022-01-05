@@ -6,7 +6,6 @@
 # To run this code, set the work directory to folder containing the provided data.
 setwd('C:/Users/offne/OneDrive - University College London/CEGE0097 Spatial Analysis and Geocomputation/Coursework')
 
-
 # Load Packages
 library(tmap)
 library(ggplot2)
@@ -19,9 +18,9 @@ library(dplyr)
 
 #### 1. LOAD DATA ####
 # Open csv files
-ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv')
-crime <- read.csv(file='Data/2016-06-metropolitan-street.csv')
-pp <- read.csv(file='Data/2016-police-perceptions.csv')
+ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
+crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
+pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 
 # Open shape files
 proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
@@ -30,7 +29,6 @@ borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT"
 ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp")
 ward <- spTransform(ward, CRS(proj))
-
 
 
 #### 2. CLEAN & AGGREGATE DATA ####
@@ -64,9 +62,9 @@ pp[ ,names] <- apply(pp[ , names], 2, function(x) as.numeric(as.character(x))) #
 #### 2a. Police Perceptions ####
 
 # Assign borough to pp
-names <- pp$?..Neighbourhood
+names <- pp$Neighbourhood
 names <- sub(" -.*", "", names)
-pp$?..Neighbourhood <- c(names)
+pp$Neighbourhood <- c(names)
 names(pp)[1] <- "DISTRICT"
 
 # Take mean of values based on borough & then take row mean
