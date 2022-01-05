@@ -31,14 +31,16 @@
 # 7. ...
 
 #_______________________________________________________________________________
-#### 0. SETUP #### 
+# 0. SETUP
 #_______________________________________________________________________________
 
 # set environment
-# setwd('C:/Users/offne/OneDrive - University College London/CEGE0097 Spatial Analysis and Geocomputation/Coursework')
+setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
 
 # install packages("tmap")
 # install.packages("ggplot2")
+# install.packages('tidyverse')
+# install.packages('spatialEco')
 
 # load packages
 library(tmap)       # for creating thematic maps
@@ -50,10 +52,11 @@ library(leaflet)    # for creating interactive 'web' maps in the console
 library(spatialEco) # for spatial data manipulation, querying, sampling & modelling.
 library(dplyr)      # for efficient manipulation of dataframe like objects
 library(plyr)
-# library(gridExtra)
+library(gridExtra)
+library(forcats)
 
 #_______________________________________________________________________________
-####  1. LOADING DATA #### 
+#### 1. LOADING DATA #### 
 #_______________________________________________________________________________
 
 # load csv files
@@ -73,10 +76,10 @@ names(borough@data)[1] <- "DISTRICT"  # change name of spatial delineation (col1
 #neighbourhood <- spTransform(ward, CRS(proj))
 
 #_______________________________________________________________________________
-####  2. PREPROCESSING DATA #### 
+#### 2. PREPROCESSING DATA #### 
 #_______________________________________________________________________________
 
-####  2.1 GENERAL CLEANING #### ------------------------------------------------
+####2.1 GENERAL CLEANING ####---------------------------------------------------
 
 ### Check for missing values
 sapply(crime, function(x) sum(is.na(x)))
@@ -104,7 +107,7 @@ ss$ID <- seq_along(ss[,1])
 crime$ID <- seq_along(crime[,1])
 
 
-#### 2.1. PREPROCESSING POLICE PERCEPTION (PP) ####  ---------------------------
+#### 2.1. PREPROCESSING POLICE PERCEPTION (PP)  #### ---------------------------
 
 ### shorten indicator names
 names(pp) <- c('neighbourhood','ALL_goodjob', 'ALL_fair', 'ALL_listens')
@@ -199,7 +202,7 @@ pp_black_mean <- pp_black_lst[2]
 pp_black_borough <- pp_black_lst[3]
 
 
-#### 2.2. PREPROCESSING STOP & SEARCH (S&S)  #### ------------------------------
+#### 2.2. PREPROCESSING STOP & SEARCH (S&S) ####  ------------------------------
 
 ### Create points from coordinate datasets
 xy <- ss[,c('Longitude', 'Latitude')]
@@ -223,8 +226,7 @@ names(ss_ag) <- c('NAME', 'ss_occurance')
 ### Create polygon data from point count
 ss_ward <- merge(ward, ss_ag, by='NAME') 
 
-#### 2.3. PREPROCESSING CRIME #### ---------------------------------------------
-
+#### 2.3. PREPROCESSING CRIME  #### --------------------------------------------
 ### Create Point data from coordinate datasets
 xy <- crime[,c('Longitude', 'Latitude')]
 crime <- SpatialPointsDataFrame(coords= xy, data = crime, proj4string = CRS(proj))
@@ -246,7 +248,7 @@ names(crime_ag) <- c('NAME', 'crime_occurance')
 ### Create polygon data from point count
 crime_ward <- merge(ward, crime_ag, by='NAME') 
 
-#### 2.4 COMBINING DATASETS  #### ----------------------------------------------
+#### 2.4 COMBINING DATASETS #### -----------------------------------------------
 
 ### combine pp from all ethnicities 
 pp_per_borough <- merge(borough, pp_ag, by='DISTRICT')
@@ -286,10 +288,10 @@ ss@data <- na.omit(ss@data)
 pp_per_borough@data <- na.omit(pp_per_borough@data)
 
 #_______________________________________________________________________________
-####  3. NON-SPATIAL EDA #### 
+#### 3. NON-SPATIAL EDA #### 
 #_______________________________________________________________________________
 
-#### 3.1. EXPLORING DESCRIPTIVE STATISTICS  #### -------------------------------
+#### 3.1. EXPLORING DESCRIPTIVE STATISTICS #### --------------------------------
 
 ### pp
 head(pp_per_borough)                        # print first rows
@@ -317,7 +319,7 @@ for (i in colnames(ss@data)){
   print(paste(i, sd(ss@data[[i]])))
 }
 
-#### 3.2. EXPLORING DISTRIBUTION ####-------------------------------------------
+#### 3.2. EXPLORING DISTRIBUTION #### ------------------------------------------
 
 ### pp distribution
 mean_distribution <- function(pp, title) {
@@ -344,7 +346,7 @@ grid.arrange(pp_dist, pp_white_dist, pp_asian_dist, pp_black_dist, ncol=2)
 ### s&s distribution
 
 
-#### 3.3. EXPLORING VARIATION  #### --------------------------------------------
+#### 3.3. EXPLORING VARIATION #### --------------------------------------------
 
 ### foo: barcharts showing variation by indicator
 barchart <- function(pp_per_borough,  indicator_col, title_indicator, respondent) {
@@ -390,13 +392,14 @@ br_asian_mean <- barchart(pp_per_borough, "PP_ASIAN_MEAN", "Mean PP", "Asian Res
 br_black_mean <- barchart(pp_per_borough, "PP_BLACK_MEAN", "Mean PP", "Black Respondents")
 br_all_mean <- barchart(pp_per_borough, "PP_ALL_MEAN", "Mean PP", "All Respondents")
 grid.arrange(br_white_mean, br_asian_mean, br_black_mean, br_all_mean, ncol=2)
-
+  
 ### foo: boxplots showing variation by indicator
 boxplots <- function(pp,  indicator_col, title_indicator, respondent) {
   bx_pp <- ggplot(data=pp, aes_string(x="DISTRICT", y=indicator_col)) + 
     geom_boxplot(fill="#0099f9") +
     coord_flip() +
-    labs(title = paste(title_indicator,"Rating by", respondent, sep=" "), caption = "Source data: MPS/MOPAC", y = 'SCORE (%)')
+    labs(title = paste(title_indicator,"Rating by", respondent, sep=" "), caption = "Source data: MPS/MOPAC", y = 'SCORE (%)') +
+    scale_y_continuous(limits=c(30,100), breaks=seq(30,100,10), expand = c(0, 0))
   return(bx_pp)
 }
 
@@ -433,6 +436,33 @@ bx_asian_mean <- boxplots(pp_asian,'ASIAN_listens', "Mean PP", 'Asian Respondent
 bx_black_mean <- boxplots(pp_black,'BLACK_listens', "Mean PP'", 'Black Respondents')
 bx_all_mean <- boxplots(pp,'ALL_listens', "Mean PP", 'All Respondents')
 grid.arrange(bx_white_mean, bx_asian_mean, bx_black_mean, bx_all_mean, ncol=2)
+
+### foo: combined boxplots for each indicator
+combined_boxplot <- function(pp_white, pp_asian, pp_black, indicator) {
+  # 'y' var must have same name across dataframes
+  names(pp_white)[names(pp_white) == paste("WHITE",indicator,sep="_")] <- "TEMP"
+  names(pp_asian)[names(pp_asian) == paste("ASIAN",indicator,sep="_")] <- "TEMP"
+  names(pp_black)[names(pp_black) == paste("BLACK",indicator,sep="_")] <- "TEMP"
+  # create boxplot
+  bx_pp <- ggplot(NULL, aes_string(x="DISTRICT", y="TEMP")) + 
+    geom_boxplot(data=pp_white, alpha=.4, width=0.6, color="#0057e7", fill="#001eff", position = position_nudge(x = -0.05, y = 0)) +
+    geom_boxplot(data=pp_asian, alpha=.4, width=0.6, color="#1fc700", fill="#1fc700", position = position_nudge(x = 0, y = 0)) +
+    geom_boxplot(data=pp_black, alpha=.4, width=0.6, color="#d62d20", fill="#d62d20", position = position_nudge(x = 0.05, y = 0)) +
+    coord_flip() +
+    labs(title = toupper(indicator), caption = "Source data: MPS/MOPAC", y = 'SCORE (%)') +
+    scale_y_continuous(limits=c(40,100), breaks=seq(40,100,10), expand = c(0, 0))
+  return(bx_pp)
+}
+
+### call: combined boxplots
+bx_goodjob <- combined_boxplot(pp_white, pp_asian, pp_black, "goodjob")
+bx_fair <- combined_boxplot(pp_white, pp_asian, pp_black, "fair")
+bx_fairss <- combined_boxplot(pp_white, pp_asian, pp_black, "fairSS")
+bx_listens <- combined_boxplot(pp_white, pp_asian, pp_black, "listens")
+bx_goodjob
+bx_fair
+bx_fairss
+bx_listens
 
 
 ### crime by 'type' attribute (res: 25% Anti-social behaviour, 20% Violence and sexual offense)
@@ -499,10 +529,10 @@ ggplot(data=ss@data, aes(x=Outcome, y=PP_ALL_MEAN)) +
   coord_cartesian(ylim = quantile(ss@data$PP_ALL_MEAN, c(0, 0.97)))
 
 #_______________________________________________________________________________
-####  4. SPATIAL EDA #### 
+#### 4. SPATIAL EDA #### 
 #_______________________________________________________________________________
 
-#### 4.1. EXPLORING GEOGRAPHIC DISTRIBUTION  #### ------------------------------
+#### 4.1. EXPLORING GEOGRAPHIC DISTRIBUTION #### -------------------------------
 
 ### crime: point plot
 crimemap <- leaflet(crime) %>% 
@@ -557,7 +587,7 @@ pp_choro <- leaflet(pp_per_borough) %>%
 pp_choro
 
 
-#### 4.1. EXPLORING GEOGRAPHIC VARIATION ####  ---------------------------------
+#### 4.1. EXPLORING GEOGRAPHIC VARIATION #### ----------------------------------
 
 ## pp: choropleth maps by 'fair' indicator
 choro_white_fair <- leaflet(pp_per_borough) %>% 
