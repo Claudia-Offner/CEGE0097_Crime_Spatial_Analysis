@@ -35,7 +35,8 @@
 #_______________________________________________________________________________
 
 # set environment
-setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
+# setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
+# setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 # install packages("tmap")
 # install.packages("ggplot2")

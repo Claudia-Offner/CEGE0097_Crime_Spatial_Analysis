@@ -4,7 +4,7 @@
 # Date: 22 January 2022
 
 # To run this code, set the work directory to folder containing the provided data.
-setwd('C:/Users/offne/OneDrive - University College London/CEGE0097 Spatial Analysis and Geocomputation/Coursework')
+setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 #install.packages('tidyverse')
 #install.packages('spatialEco')
@@ -336,7 +336,7 @@ ggplot(data=crime@data, aes(x=Crime.type, y=mean_pp)) +
 
 
 
-# **** SS GENDER DATA *** 
+# SS Gender Data  -------------------------------------------------------------
 # SS: Gender (>80% men) - COMBINE EMPTY VALUES WITH 'OTHER' (or not?) !!
 
 table(ss@data$Gender) # -> gives count per gender 
@@ -375,7 +375,7 @@ ggplot(data=updated_genders, aes(x=Gender, y=mean_pp)) +
 
 
 
-# ss age data -------------------------------------------------------------
+# SS Age data -------------------------------------------------------------
 
 
 # **** SS AGE DATA *** 
@@ -401,7 +401,7 @@ ggplot(data=ss@data, aes(x=Age.range, y=mean_pp)) +
 
 
 
-# SS ethnicity ------------------------------------------------------------
+# SS Ethnicity ------------------------------------------------------------
 
 
 # *** SS ETHNICITY DATA ***
@@ -457,7 +457,7 @@ ggplot(data=ss@data, aes(x=Self.defined.ethnicity, y=mean_pp)) +
 
 
 
-# OFFICER DEFINED ETHNICITY  ----------------------------------------------
+# SS Officer defined Ethnicity  ----------------------------------------------
 
 
 
@@ -487,7 +487,7 @@ ggplot(data=ss@data, aes(x=Officer.defined.ethnicity, y=mean_pp)) +
 
 
 
-# object of search --------------------------------------------------------
+# SS Object of Search --------------------------------------------------------
 
 # SS: object.of.search (>60% Controlled drugs) (~35% articles for use in criminal damage)
 x <- prop.table(table(ss@data$Object.of.search))

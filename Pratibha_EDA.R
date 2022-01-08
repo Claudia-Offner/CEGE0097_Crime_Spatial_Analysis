@@ -1,6 +1,6 @@
 # To run this code, set the work directory to folder containing the provided data.
-setwd('C:/Users/Lenovo/Documents/Report')
-
+# setwd('C:/Users/Lenovo/Documents/Report')
+# setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 
 # Load Packages
@@ -15,17 +15,17 @@ library(dplyr)
 
 #### 1. LOAD DATA ####
 # Open csv files
-ss <- read.csv(file='2016-06-metropolitan-stop-and-search.csv')
-crime <- read.csv(file='2016-06-metropolitan-street.csv')
-pp <- read.csv(file='2016-police-perceptions.csv')
+ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
+crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
+pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 
 # Open shape files
-proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
-borough <- readOGR(dsn="London_Shapefiles/London_Borough_Excluding_MHW.shp")
-borough <- spTransform(borough, CRS(proj))
-names(borough@data)[1] <- "DISTRICT"
-ward <- readOGR(dsn="London_Shapefiles/London_Ward.shp")
+proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0" #set projections
+ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp")
 ward <- spTransform(ward, CRS(proj))
+borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp")
+borough <- spTransform(borough, CRS(proj))
+names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
 
 
 
@@ -60,9 +60,9 @@ pp[ ,names] <- apply(pp[ , names], 2, function(x) as.numeric(as.character(x))) #
 #### 2a. Police Perceptions ####
 
 # Assign borough to pp
-names <- pp$ï..Neighbourhood
+names <- pp$Neighbourhood
 names <- sub(" -.*", "", names)
-pp$ï..Neighbourhood <- c(names)
+pp$Neighbourhood <- c(names)
 names(pp)[1] <- "DISTRICT"
 
 # Take mean of values based on borough & then take row mean
@@ -305,6 +305,9 @@ ggplot(data=ss@data, aes(x=Outcome, y=mean_pp)) +
   geom_boxplot()+
   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
 
+#### ####
+
+# install.packages("janitor")
 
 # SPPA
 library(spatstat)
