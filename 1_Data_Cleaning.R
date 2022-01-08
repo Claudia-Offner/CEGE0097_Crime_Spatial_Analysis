@@ -16,7 +16,8 @@ library(tidyverse)
 library(leaflet)
 library(spatialEco)
 library(dplyr)
-
+library(plyr) # This must follow dplyr for 'count' method to work!
+library(spdep) # for poly2nb & nb2listw
 # NOTE: Make sure all of your necessary pre-processing is done here (not in 2_Non_Spatial_EDA)
 
 #### 1.1 LOAD DATA ####
@@ -33,6 +34,7 @@ ward <- spTransform(ward, CRS(proj))
 borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp")
 borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
+
 
 #### 1.2 GENERAL DATA CLEANING & AGGREGATION ####
 
