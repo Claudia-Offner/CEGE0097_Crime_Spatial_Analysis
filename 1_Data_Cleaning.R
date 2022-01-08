@@ -70,6 +70,10 @@ crime$ID <- seq_along(crime[,1])
 # visuals/non-spatialEDA/ESDA. Add more drop down sections for specific 
 # variables (like in Danni's section) if need be.
 
+### (CLAUDIA) COMMENT: Good job on teasing out the pp_borough data by race! I will be using
+# pp_borough, pp_black_borough, pp_asian_borough, pp_white_borough in the regression.
+
+
 #### 1.2a Police Perceptions #### 
 
 ### shorten indicator names
@@ -176,6 +180,12 @@ pp_black_borough <- pp_black_lst[3]
 # If so, either add to both your scrip 2 section & ESDA script, 
 # or check with tommy's section cause it may be useful for all of our scripts 
 
+### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
+# the variables you want in the regression. For the moment I am using the ss_ward2
+# file which only looks at ss_occurance. It will be more interesting to have a few datasets
+# that differ ss_occurance by select race and gender 
+# (i.e. ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
+
 #### 1.2b Stop and Search #### 
 
 # Create Point data from coordinate datasets
@@ -193,7 +203,7 @@ ss@data <- na.omit(ss@data)
 # Aggregate point data by ward NAME (COUNT points): Specific demographics will 
 # need to be counted and examined separately, and this will be determined by 
 # non spatial EDA
-#_______________________________________________________________________________\
+#_______________________________________________________________________________
 
 # install point.in.polygon -> package associated 
 ss_ag <- aggregate(ss@data$NAME, list(ss@data$NAME), length)
@@ -417,9 +427,17 @@ table(ss@data$Outcome)
 # Add your pre-processing required for visuals/non-spatialEDA/ESDA here when you 
 # can and make sure the visuals/non-spatialEDA is in script 2.
 
-### (CLAUDIA) COMMENT: when you install new pacakges, make sure you leave the 
-# install.package() code in for us, or have a section that lets us identify what 
-# we need to install easily
+### (CLAUDIA) COMMENT: We need to combine all theft related variables into one
+# to simplify the regression analysis. Could you combine the following categories 
+# into a variables called'All_Theft'?:
+# Other Theft/Burglary/Shoplifting/Theft from the person/ Robbery/Bicycle theft
+
+### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
+# the variables you want in the regression. For the moment I am using the crime_ward
+# file which only looks at crime_occurance. It will be more interesting to have a few datasets
+# that differ crime_occurance by select crime types 
+# (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
+
 
 #### 1.2c Crime #### 
 
