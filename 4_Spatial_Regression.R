@@ -64,3 +64,34 @@ reg_df <- merge(reg_df, pp_df[ , c(1,6:ncol(pp_df))], by='DISTRICT')
 
 
 
+#### 4.3 LINEAR REGRESSION ####
+
+# Dependent variable: The variable we are trying to predict.
+# Independent variables: The variables we are using to predict the dependent variable. They are called independent variables because they are required to independent of one another. Strong correlation between two or more independent variables is referred to as multicollinearity and can lead to unstable parameter estimates, which limits the explanatory power of the models.
+# Parameters: Parameters or coefficients are the weights of the regression model. Each independent variable has a parameter that is multiplied by its value to make a prediction.
+
+# STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
+ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df) 
+summary(ssc_lreg)
+# For every crime occurrence, there is 0.12 more stop and search (sig)
+# Model accounts for 50% of data variance
+
+# POLICE PERCEPTIONS (outcome/dependent) ~ CRIME (independent)
+ppc_lreg <- lm(PP_ALL_MEAN~crime_occurance, data=reg_df) 
+summary(ppc_lreg)
+# For every crime occurrence, there is -0.003 lower police perception (insig)
+# Model accounts for 0.002 of data variance
+
+# POLICE PERCEPTIONS (outcome/dependent) ~ STOP AND SEARCH (independent)
+ppss_lreg <- lm(PP_ALL_MEAN~ss_occurance, data=reg_df) 
+summary(ppss_lreg)
+# For every stop & search occurrence, there is -0.002 lower stop and search (very insig)
+# Model accounts for -0.002 of data variance
+
+#### 4.4 TESTING ERRORS FOR SPATIAL AUTOCORRELATION ####
+
+# STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
+
+boston.shp$lm.res <- residuals(bos.lm)
+tm_shape(boston.shp)+tm_polygons("lm.res", palette="-RdBu", style="quantile")
+
