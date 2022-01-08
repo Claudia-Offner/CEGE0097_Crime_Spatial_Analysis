@@ -56,16 +56,23 @@ ss_df <- ss_ward2
 crime_df <- crime_ward
 
 # COMBINE ALL DATASETS: For regression analysis
-reg_df <- merge(ss_df, crime_df, by='NAME')
+reg_df <- merge(crime_df, ss_df, by='NAME')
 reg_df <- merge(reg_df, pp_df[ , c(1,6:ncol(pp_df))], by='DISTRICT')
 reg_df@data <- reg_df@data[order(reg_df@data$DISTRICT), ]
 rownames(reg_df@data) <- seq(length=nrow(reg_df@data)) 
 
+# PRELIMINARY CLEANING ####
+
 # Check missing data
 sapply(reg_df@data, function(x) sum(is.na(x)))
-missing <- reg_df@data[rowSums(is.na(reg_df@data)) > 0, ] 
 # Take into account NA values in regression model & spatial weight matrix
+missing <- reg_df@data[rowSums(is.na(reg_df@data)) > 0, ]
+reg_df <- reg_df[!(rownames(reg_df@data) %in% rownames(missing)),]
 
+# Choropleth maps
+# tm_shape(ward)+tm_polygons("HECTARES", palette="-RdBu", style="quantile")
+# tm_shape(reg_df)+tm_polygons("ss_occurance", palette="-RdBu", style="quantile")
+# ERROR MESAGES: https://gis.stackexchange.com/questions/364667/r-4-0-1-not-sure-i-understand-this-message-warning-message-in-proj4stringx
 
 #### 4.3 LINEAR REGRESSION ####
 
@@ -74,7 +81,7 @@ missing <- reg_df@data[rowSums(is.na(reg_df@data)) > 0, ]
 # Parameters: Parameters or coefficients are the weights of the regression model. Each independent variable has a parameter that is multiplied by its value to make a prediction.
 
 # STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
-ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df@data, na.action=na.exclude) 
+ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df@data) 
 summary(ssc_lreg)
 # For every crime occurrence, there is 0.12 more stop and search (sig)
 # Model accounts for 50% of data variance
@@ -95,7 +102,7 @@ summary(ppss_lreg)
 
 # Create spatial weight matrix (without missing data)
 
-reg_W <- nb2listw(poly2nb(reg_df))
+reg_W <- nb2listw(poly2nb(reg_df), zero.policy=T) # zero.policy=T
 
 
 # A. STOP AND SEARCH (outcome/dependent) ~ CRIME (independent) ####
@@ -111,7 +118,7 @@ ggplot(data=reg_df@data, aes(ssc_lreg.res)) + geom_histogram()
 ggplot(data=reg_df@data, aes(sample=ssc_lreg.res)) + geom_qq() + geom_qq_line()
 
 # Residal Autocorrelation
-lm.morantest(ssc_lreg, reg_W) # significat autocorrelatoin present
+lm.morantest(ssc_lreg, reg_W) # significant auto-correlation present
 
 # Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
 lm.LMtests(ssc_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
@@ -136,11 +143,11 @@ ggplot(data=reg_df@data, aes(ppc_lreg.res)) + geom_histogram()
 ggplot(data=reg_df@data, aes(sample=ppc_lreg.res)) + geom_qq() + geom_qq_line()
 
 # Residal Autocorrelation
-lm.morantest(ppc_lreg, reg_W) # significat autocorrelatoin present
+# lm.morantest(ppc_lreg, reg_W) # significat autocorrelatoin present
 
 # Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
-lm.LMtests(ppc_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
-lm.LMtests(ppc_lreg, reg_W, test="RLMerr") # error autocorrelation significant
+# lm.LMtests(ppc_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
+# lm.LMtests(ppc_lreg, reg_W, test="RLMerr") # error autocorrelation significant
 
 
 
@@ -157,7 +164,7 @@ ggplot(data=reg_df@data, aes(ppss_lreg.res)) + geom_histogram()
 ggplot(data=reg_df@data, aes(sample=ppss_lreg.res)) + geom_qq() + geom_qq_line()
 
 # Residal Autocorrelation
-lm.morantest(ppss_lreg, reg_W) # significat autocorrelatoin present
+# lm.morantest(ppss_lreg, reg_W) # significat autocorrelatoin present
 
 # Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
 lm.LMtests(ppss_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
@@ -167,8 +174,8 @@ lm.LMtests(ppss_lreg, reg_W, test="RLMerr") # error autocorrelation significant
 
 
 
-rownames(missing)
-x <- reg_df@data[!(rownames(reg_df@data) %in% missing),]
-reg_df@data <- na.omit(reg_df@data)
-x <- reg_df[reg_df$DISTRICT != 'City of Westminster']
-colnames(reg_df@data)
+# rownames(missing)
+# reg_df <- reg_df[!(rownames(reg_df@data) %in% rownames(missing)),]
+# reg_df@data <- na.omit(reg_df@data)
+# x <- reg_df[reg_df$DISTRICT != 'City of Westminster']
+# colnames(reg_df@data)
