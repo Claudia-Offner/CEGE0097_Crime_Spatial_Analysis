@@ -376,7 +376,7 @@ asb_choro
 
 # from tutorial
 tm_shape(asb_ward) + tm_polygons(col="crime_occurance", palette="YlOrRd", style="jenks") +
-tm_shape(anti_social_behaviour) + tm_dots( style="jenks") + tm_layout(legend.outside = TRUE, legend.text.size = 1)
+  tm_shape(anti_social_behaviour) + tm_dots( style="jenks") + tm_layout(legend.outside = TRUE, legend.text.size = 1)
 
 library(spdep)
 library(knitr)
