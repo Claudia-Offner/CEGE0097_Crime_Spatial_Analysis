@@ -9,6 +9,7 @@ setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 # CLAUDIA COMENTS:
 # What is fairSS for PP_borough race datasets?
+# Why are there missing values for PP?
 # (NEED i.e.: ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
 # (NEED i.e.:  crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
@@ -41,27 +42,29 @@ pp_white_borough <- merge(borough, pp_white_borough[ , c(1,6:ncol(pp_white_borou
 # POLICE PERCEPTION: Merge variables of Interest (4) 
 ### goodjob, fair, listens, mean by ALL & race (black, asian, white)
 ### What is fairSS for PP_borough race datasets?
-
 pp_df <- merge(pp_borough, pp_black_borough[ , c(1,6:ncol(pp_black_borough))], by='DISTRICT')
 pp_df <- merge(pp_df, pp_asian_borough[ , c(1,6:ncol(pp_asian_borough))], by='DISTRICT')
 pp_df <- merge(pp_df, pp_white_borough[ , c(1,6:ncol(pp_white_borough))], by='DISTRICT')
-
+pp_df@data <- na.omit(pp_df@data)
 
 # STOP & SEARCH: Merge variables of Interest (6)
 ### ss_occurance by ALL, race (black, asian, white) and gender (male, female)
-
 ss_df <- ss_ward2
 
 # CRIME: Variables of Interest (4)
 ### crime_occurance by ALL, type (anti-social behaviour, violence & sexual offense, all theft)
-
 crime_df <- crime_ward
 
 # COMBINE ALL DATASETS: For regression analysis
 reg_df <- merge(ss_df, crime_df, by='NAME')
 reg_df <- merge(reg_df, pp_df[ , c(1,6:ncol(pp_df))], by='DISTRICT')
+reg_df@data <- reg_df@data[order(reg_df@data$DISTRICT), ]
+rownames(reg_df@data) <- seq(length=nrow(reg_df@data)) 
 
-
+# Check missing data
+sapply(reg_df@data, function(x) sum(is.na(x)))
+missing <- reg_df@data[rowSums(is.na(reg_df@data)) > 0, ] 
+# Take into account NA values in regression model & spatial weight matrix
 
 
 #### 4.3 LINEAR REGRESSION ####
@@ -71,27 +74,101 @@ reg_df <- merge(reg_df, pp_df[ , c(1,6:ncol(pp_df))], by='DISTRICT')
 # Parameters: Parameters or coefficients are the weights of the regression model. Each independent variable has a parameter that is multiplied by its value to make a prediction.
 
 # STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
-ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df) 
+ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df@data, na.action=na.exclude) 
 summary(ssc_lreg)
 # For every crime occurrence, there is 0.12 more stop and search (sig)
 # Model accounts for 50% of data variance
 
 # POLICE PERCEPTIONS (outcome/dependent) ~ CRIME (independent)
-ppc_lreg <- lm(PP_ALL_MEAN~crime_occurance, data=reg_df) 
+ppc_lreg <- lm(PP_ALL_MEAN~crime_occurance, data=reg_df@data, na.action=na.exclude) 
 summary(ppc_lreg)
 # For every crime occurrence, there is -0.003 lower police perception (insig)
 # Model accounts for 0.002 of data variance
 
 # POLICE PERCEPTIONS (outcome/dependent) ~ STOP AND SEARCH (independent)
-ppss_lreg <- lm(PP_ALL_MEAN~ss_occurance, data=reg_df) 
+ppss_lreg <- lm(PP_ALL_MEAN~ss_occurance, data=reg_df@data, na.action=na.exclude) 
 summary(ppss_lreg)
 # For every stop & search occurrence, there is -0.002 lower stop and search (very insig)
 # Model accounts for -0.002 of data variance
 
 #### 4.4 TESTING ERRORS FOR SPATIAL AUTOCORRELATION ####
 
-# STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
+# Create spatial weight matrix (without missing data)
 
-boston.shp$lm.res <- residuals(bos.lm)
-tm_shape(boston.shp)+tm_polygons("lm.res", palette="-RdBu", style="quantile")
+reg_W <- nb2listw(poly2nb(reg_df))
 
+
+# A. STOP AND SEARCH (outcome/dependent) ~ CRIME (independent) ####
+
+# Linear model residuals
+reg_df$ssc_lreg.res <- residuals(ssc_lreg)
+tm_shape(reg_df)+tm_polygons("ssc_lreg.res", palette="-RdBu", style="quantile")
+
+# Check distribution for normality
+ggplot(data=reg_df@data, aes(ssc_lreg.res)) + geom_histogram()
+
+# QQ-plot of linear model residuals
+ggplot(data=reg_df@data, aes(sample=ssc_lreg.res)) + geom_qq() + geom_qq_line()
+
+# Residal Autocorrelation
+lm.morantest(ssc_lreg, reg_W) # significat autocorrelatoin present
+
+# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
+lm.LMtests(ssc_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
+lm.LMtests(ssc_lreg, reg_W, test="RLMerr") # error autocorrelation significant
+
+
+
+
+
+
+
+# POLICE PERCEPTIONS (outcome/dependent) ~ CRIME (independent) ####
+
+# Linear model residuals
+reg_df$ppc_lreg.res <- residuals(ppc_lreg)
+tm_shape(reg_df)+tm_polygons("ppc_lreg.res", palette="-RdBu", style="quantile")
+
+# Check distribution for normality
+ggplot(data=reg_df@data, aes(ppc_lreg.res)) + geom_histogram()
+
+# QQ-plot of linear model residuals
+ggplot(data=reg_df@data, aes(sample=ppc_lreg.res)) + geom_qq() + geom_qq_line()
+
+# Residal Autocorrelation
+lm.morantest(ppc_lreg, reg_W) # significat autocorrelatoin present
+
+# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
+lm.LMtests(ppc_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
+lm.LMtests(ppc_lreg, reg_W, test="RLMerr") # error autocorrelation significant
+
+
+
+# POLICE PERCEPTIONS (outcome/dependent) ~ STOP AND SEARCH (independent) ) ####
+
+# Linear model residuals
+reg_df$ppss_lreg.res <- residuals(ppss_lreg)
+tm_shape(reg_df)+tm_polygons("ppss_lreg.res", palette="-RdBu", style="quantile")
+
+# Check distribution for normality
+ggplot(data=reg_df@data, aes(ppss_lreg.res)) + geom_histogram()
+
+# QQ-plot of linear model residuals
+ggplot(data=reg_df@data, aes(sample=ppss_lreg.res)) + geom_qq() + geom_qq_line()
+
+# Residal Autocorrelation
+lm.morantest(ppss_lreg, reg_W) # significat autocorrelatoin present
+
+# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
+lm.LMtests(ppss_lreg, reg_W, test="RLMlag") # lag autocorrelation insignificant
+lm.LMtests(ppss_lreg, reg_W, test="RLMerr") # error autocorrelation significant
+
+
+
+
+
+rownames(missing)
+x <- reg_df@data[!(rownames(reg_df@data) %in% missing),]
+reg_df@data <- na.omit(reg_df@data)
+x <- reg_df[reg_df$DISTRICT != 'City of Westminster']
+colnames(reg_df@data)
