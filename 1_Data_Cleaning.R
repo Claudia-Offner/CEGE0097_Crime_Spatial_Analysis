@@ -509,6 +509,8 @@ station_ward <- merge(ward, stations_ag, by='NAME')
 # Set NAs to 0
 station_ward@data[is.na(station_ward@data)] <- 0
 
+## CREATE K NEAREST NEIGHBOURS FOR NEAREST POLICE STATION
+
 #### Population ####
 
 # Rename columns
