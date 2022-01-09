@@ -282,3 +282,5 @@ lm.LMtests(x, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation in
 lm.LMtests(x, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
 
 # Do a durbin regression
+
+# Commit test author
