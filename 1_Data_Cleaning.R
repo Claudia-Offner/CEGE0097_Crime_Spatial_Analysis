@@ -30,8 +30,10 @@ pp_wab <- read.csv(file='Data/2015-16 _to_2020-21_inclusive_neighbourhood_indica
 
 # Open shape files
 proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0" #set projections
-ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp")
+# ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp")
+ward <- readOGR(dsn="Data/London_Shapefiles/London-wards-2014/London_Ward.shp")
 ward <- spTransform(ward, CRS(proj))
+
 borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp")
 borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
@@ -39,9 +41,6 @@ names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1)
 # Open OTHER csv files (controlled variables for regression - both with data from 2013)
 stations <- read.csv(file='Data/2013_police_counters.csv', fileEncoding="UTF-8-BOM")
 pop <- read.csv(file='Data/2013_ward_atlas_data.csv')
-
-sapply(pop, function(x) sum(is.na(x)))
-
 
 # 1.2 GENERAL DATA CLEANING & AGGREGATION ####
 
@@ -61,7 +60,7 @@ ss <- subset(ss, select = -c(Part.of.a.policing.operation, Type, Legislation, Po
 borough@data <- subset(borough@data, select = -c(SUB_2006, SUB_2009))
 pp <- subset(pp, select = -c(2:3,5:6,9:22)) # selects only good-job, fair and listens indicators
 pp <- pp[ , c(1, 3, 4, 2)] # reorder to neighbour, fair, listens, good-job
-pop <- subset(pop, select = c(New_Code, Population_and_Age_Mean_age_2013, 
+pop <- subset(pop, select = c(New_Code, Borough, Names, Population_and_Age_Mean_age_2013, 
                               Area_and_Density_Population_density_.persons_per_sq_km._2013, 
                               Diversity_Ethnic_Group_5_groups__2011_Census_White, 
                               Diversity_Ethnic_Group_5_groups__2011_Census_Asian_or_Asian_British, 
@@ -94,8 +93,6 @@ crime$ID <- seq_along(crime[,1])
 
 ### (CLAUDIA) COMMENT: Good job on teasing out the pp_borough data by race! I will be using
 # pp_borough, pp_black_borough, pp_asian_borough, pp_white_borough in the regression.
-
-
 
 
 # 1.2a Police Perceptions #### 
@@ -508,20 +505,52 @@ stations_ag <- aggregate(stations@data$NAME, list(stations@data$NAME), length)
 names(stations_ag) <- c('NAME', 'police_station_occurance')
 
 # Create polygon data from point count
-stations_ward <- merge(ward, stations_ag, by='NAME') 
+station_ward <- merge(ward, stations_ag, by='NAME') 
 # Set NAs to 0
-stations_ward@data[is.na(stations_ward@data)] <- 0
+station_ward@data[is.na(station_ward@data)] <- 0
 
 #### Population ####
 
 # Rename columns
-names(pop) <- c('GSS_CODE', 'Mean_Popuation_Age_2013', 'Population_Density_km2_2013', 
+names(pop) <- c('GSS_CODE', 'DISTRICT', 'NAME', 'Mean_Popuation_Age_2013', 'Population_Density_km2_2013', 
                 'Ethnic_Group_White_2013', 'Ethnic_Group_Asian_2013', 'Ethnic_Group_Black_2013', 
                 'Mortality_Ratio_2013', 'Life_Expectancy_2013', 'Median_House_Prices_2013', 
                 'Mean_Household_Income_2013', 'Total_crime_rate_2013')
 
 pop_ward <- merge(ward, pop, by='GSS_CODE')
+# Organise data
+pop_ward@data <- pop_ward@data[order(pop_ward@data$BOROUGH), ]
+rownames(pop_ward@data) <- seq(length=nrow(pop_ward@data))
 sapply(pop_ward@data, function(x) sum(is.na(x)))
+
+# Merge missing data on NAME 
+missing <- pop_ward[rowSums(is.na(pop_ward@data)) > 0, drop = FALSE]
+missing <- missing[ , c(1:7), drop = FALSE]
+names(missing@data)[2] <- "NAME" # change name of spatial delineation (col1) to match ward
+missing@data$NAME <- sub("&", "and", missing@data$NAME) # replace & with and
+replace <- strtoi(rownames(missing@data))
+missing <- merge(missing, pop, by='NAME', drop = FALSE)
+
+# Fill in City of London NA's
+for(i in 1:nrow(missing@data)) {       # for-loop over rows
+  if(missing@data[i, 6] == 'City of London') {
+    missing@data[i, c(8:ncol(missing@data))] <- data.frame('E09000001', 'City of London', 41.3, 2406.25, 5799, 940, 193, 45.7, 24.93011, 615000, 99390, 680.7206)
+  }
+}
+
+sapply(missing@data, function(x) sum(is.na(x)))
+
+# Reorganise dataframes
+pop_ward@data <- subset(pop_ward@data, select = -c(NAME.y))
+names(pop_ward@data)[2] <- "NAME" # change name of spatial delineation (col1) to match ward
+missing@data <- subset(missing@data, select = -c(GSS_CODE.y))
+names(missing@data)[2] <- "GSS_CODE" # change name of spatial delineation (col1) to match ward
+pop_ward@data <- pop_ward@data[c(colnames(missing@data))]
+# Remove rownames that are in missing df
+pop_ward <- pop_ward[!(rownames(pop_ward@data) %in% replace),]
+# Append missing df
+pop_ward <- rbind(pop_ward, missing)
+
 # tm_shape(pop_ward)+tm_polygons("Population_Density_km2_2013", palette="-RdBu", style="quantile")
 
 
