@@ -246,9 +246,6 @@ tm_shape(reg_df)+tm_polygons("ppss_ESreg.fit", style="quantile")
 
 
 #### FINAL MODEL ####
-
-
-
 x <- lm(ss_occurance~crime_occurance
         +BLACK_mean
         +ASIAN_mean
@@ -262,7 +259,8 @@ x <- lm(ss_occurance~crime_occurance
         +Total_crime_rate_2013
         +Ethnic_Group_White_2013
         +Ethnic_Group_Asian_2013
-        +Ethnic_Group_Black_2013, data=reg_df@data)
+        +Ethnic_Group_Black_2013
+        +police_station_occurance, data=reg_df@data)
 
 summary(x)
 
