@@ -1,2 +1,3 @@
-# crime_spatial_analysis
-Spatial Analysis &amp; Geocomputation Coursework - Group B6
+# CEGE0097 Crime Spatial Analysis
+
+### Spatial Analysis & Geocomputation Coursework - Group B6
