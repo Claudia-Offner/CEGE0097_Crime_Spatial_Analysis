@@ -33,7 +33,6 @@ proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0" #set p
 # ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp")
 ward <- readOGR(dsn="Data/London_Shapefiles/London-wards-2014/London_Ward.shp")
 ward <- spTransform(ward, CRS(proj))
-
 borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp")
 borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
@@ -449,7 +448,7 @@ table(ss@data$Outcome)
 # Add your pre-processing required for visuals/non-spatialEDA/ESDA here when you 
 # can and make sure the visuals/non-spatialEDA is in script 2.
 
-### (CLAUDIA) COMMENT: We need to combine all theft related variables into one
+### (CLAUDIA) COMMENT: We need to combine all theft related variables into one variable
 # to simplify the regression analysis. Could you combine the following categories 
 # into a variables called'All_Theft'?:
 # Other Theft/Burglary/Shoplifting/Theft from the person/ Robbery/Bicycle theft
@@ -457,7 +456,7 @@ table(ss@data$Outcome)
 ### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
 # the variables you want in the regression. For the moment I am using the crime_ward
 # file which only looks at crime_occurance. It will be more interesting to have a few datasets
-# that differ crime_occurance by select crime types 
+# that differ crime_occurance by a few select crime types 
 # (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
 

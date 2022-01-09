@@ -247,6 +247,7 @@ tm_shape(reg_df)+tm_polygons("ppss_ESreg.fit", style="quantile")
 
 #### FINAL MODEL ####
 x <- lm(ss_occurance~crime_occurance
+        +ALL_mean
         +BLACK_mean
         +ASIAN_mean
         +WHITE_mean
@@ -283,4 +284,3 @@ lm.LMtests(x, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation 
 
 # Do a durbin regression
 
-# Commit test author 2
