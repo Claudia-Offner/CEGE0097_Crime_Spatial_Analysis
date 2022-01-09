@@ -19,9 +19,10 @@ library(dplyr)
 library(plyr) # This must follow dplyr for 'count' method to work!
 library(spdep) # for poly2nb & nb2listw
 # NOTE: Make sure all of your necessary pre-processing is done here (not in 2_Non_Spatial_EDA)
+tmap_mode("view")
 
-#### 1.1 LOAD DATA ####
-# Open csv files
+# 1.1 LOAD DATA ####
+# Open CRIME csv files
 ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
 crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
 pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
@@ -35,8 +36,14 @@ borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp"
 borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
 
+# Open OTHER csv files (controlled variables for regression - both with data from 2013)
+stations <- read.csv(file='Data/2013_police_counters.csv', fileEncoding="UTF-8-BOM")
+pop <- read.csv(file='Data/2013_ward_atlas_data.csv')
 
-#### 1.2 GENERAL DATA CLEANING & AGGREGATION ####
+sapply(pop, function(x) sum(is.na(x)))
+
+
+# 1.2 GENERAL DATA CLEANING & AGGREGATION ####
 
 ### Check for missing values
 sapply(crime, function(x) sum(is.na(x)))
@@ -45,6 +52,8 @@ sapply(pp, function(x) sum(is.na(x)))
 sapply(pp_wab, function(x) sum(is.na(x)))
 sapply(borough@data, function(x) sum(is.na(x)))
 sapply(ward@data, function(x) sum(is.na(x)))
+sapply(pop, function(x) sum(is.na(x)))
+sapply(stations, function(x) sum(is.na(x)))
 
 ### create subsets and drop missing/irrelevant fields
 crime <- subset (crime, select = -c(Crime.ID, Context, Reported.by, Falls.within, Location, LSOA.code, LSOA.name, Last.outcome.category))
@@ -52,6 +61,17 @@ ss <- subset(ss, select = -c(Part.of.a.policing.operation, Type, Legislation, Po
 borough@data <- subset(borough@data, select = -c(SUB_2006, SUB_2009))
 pp <- subset(pp, select = -c(2:3,5:6,9:22)) # selects only good-job, fair and listens indicators
 pp <- pp[ , c(1, 3, 4, 2)] # reorder to neighbour, fair, listens, good-job
+pop <- subset(pop, select = c(New_Code, Population_and_Age_Mean_age_2013, 
+                              Area_and_Density_Population_density_.persons_per_sq_km._2013, 
+                              Diversity_Ethnic_Group_5_groups__2011_Census_White, 
+                              Diversity_Ethnic_Group_5_groups__2011_Census_Asian_or_Asian_British, 
+                              Diversity_Ethnic_Group_5_groups__2011_Census_Black_or_Black_British, 
+                              Births_and_deaths_Standardised_Mortality_Ratio_.SMR._2013,
+                              Life_Expectancy_Life_expectancy_at_age_65_.all_persons._20092013,
+                              House_Prices_Median_House_Price_2013,
+                              Household_Income_Mean_Modelled_Household_income_..._2012.13,
+                              Crime_Total_crime_rate_2013.14))
+
 
 ### Drop Values with NA (831 in lat/long)
 crime <- na.omit(crime)
@@ -76,7 +96,9 @@ crime$ID <- seq_along(crime[,1])
 # pp_borough, pp_black_borough, pp_asian_borough, pp_white_borough in the regression.
 
 
-#### 1.2a Police Perceptions #### 
+
+
+# 1.2a Police Perceptions #### 
 
 ### shorten indicator names
 names(pp) <- c('neighbourhood','ALL_goodjob', 'ALL_fair', 'ALL_listens')
@@ -172,6 +194,7 @@ pp_black_borough <- pp_black_lst[3]
 
 
 
+
 ################### DANNI: Add your PRE-PROCESSING bits below ###################
 # (CLAUDIA) I have added what looked like pre-processing for the overall SS dataset and 
 # specific variables here so I can start my script. I commented out any visuals (barplots & ggplots) since 
@@ -188,7 +211,7 @@ pp_black_borough <- pp_black_lst[3]
 # that differ ss_occurance by select race and gender 
 # (i.e. ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
 
-#### 1.2b Stop and Search #### 
+# 1.2b Stop and Search #### 
 
 # Create Point data from coordinate datasets
 xy <- ss[,c('Longitude', 'Latitude')] 
@@ -242,7 +265,7 @@ sub <- subset(ss_ward2@data, ss_ward2@data$NAME == "Abbey") #ignore
 ss_ward2_data <- ss_ward2@data
 count(is.na(ss_ward2@data$ss_occurance))
 
-# SS Gender -------------------------------------------------------------
+#### SS Gender -------------------------------------------------------------
 
 
 # SS: Gender (>80% men) - COMBINE EMPTY VALUES WITH 'OTHER' (or not?) !!
@@ -280,7 +303,7 @@ typeof(updated_genders)
 
 
 
-# SS Age -------------------------------------------------------------
+#### SS Age -------------------------------------------------------------
 
 
 # **** SS AGE DATA *** 
@@ -306,7 +329,7 @@ table(ss@data$Age.range)
 
 
 
-# SS Self-defined Ethnicity ------------------------------------------------------------
+#### SS Self-defined Ethnicity ------------------------------------------------------------
 
 
 # *** SS ETHNICITY DATA ***
@@ -360,7 +383,7 @@ round(prop.table(table5) , 3)
 
 
 
-# SS Officer Defined Ethnicity  ----------------------------------------------
+#### SS Officer Defined Ethnicity  ----------------------------------------------
 
 # *** The officer-defined ethnicity of the person stopped ***
 
@@ -388,7 +411,7 @@ table(ss@data$Officer.defined.ethnicity)
 
 
 
-# SS Object of Search --------------------------------------------------------
+#### SS Object of Search --------------------------------------------------------
 
 # SS: object.of.search (>60% Controlled drugs) (~35% articles for use in criminal damage)
 # x <- prop.table(table(ss@data$Object.of.search))
@@ -441,7 +464,7 @@ table(ss@data$Outcome)
 # (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
 
-#### 1.2c Crime #### 
+# 1.2c Crime #### 
 
 #_______________________________________________________________________________
 # NOTE: Re-code all relevant categorical variables prior to aggregation
@@ -467,3 +490,38 @@ names(crime_ag) <- c('NAME', 'crime_occurance')
 
 # Create polygon data from point count
 crime_ward <- merge(ward, crime_ag, by='NAME') 
+
+
+# 1.2d Stations & Population ####
+#### Police Stations ####
+# Create Point data from coordinate datasets
+xy <- stations[,c('longitude', 'latitude')]
+stations <- SpatialPointsDataFrame(coords= xy, data = stations, proj4string = CRS(proj))
+
+# Join Polygon & Point information
+stations <- point.in.poly(stations, ward)
+# Remove point outside of polygon (NaN GSS_Code)
+sapply(stations@data, function(x) sum(is.na(x)))
+stations@data <- na.omit(stations@data)
+
+stations_ag <- aggregate(stations@data$NAME, list(stations@data$NAME), length)
+names(stations_ag) <- c('NAME', 'police_station_occurance')
+
+# Create polygon data from point count
+stations_ward <- merge(ward, stations_ag, by='NAME') 
+# Set NAs to 0
+stations_ward@data[is.na(stations_ward@data)] <- 0
+
+#### Population ####
+
+# Rename columns
+names(pop) <- c('GSS_CODE', 'Mean_Popuation_Age_2013', 'Population_Density_km2_2013', 
+                'Ethnic_Group_White_2013', 'Ethnic_Group_Asian_2013', 'Ethnic_Group_Black_2013', 
+                'Mortality_Ratio_2013', 'Life_Expectancy_2013', 'Median_House_Prices_2013', 
+                'Mean_Household_Income_2013', 'Total_crime_rate_2013')
+
+pop_ward <- merge(ward, pop, by='GSS_CODE')
+sapply(pop_ward@data, function(x) sum(is.na(x)))
+# tm_shape(pop_ward)+tm_polygons("Population_Density_km2_2013", palette="-RdBu", style="quantile")
+
+
