@@ -1,7 +1,7 @@
 # Project: CRIME SPATIAL ANALYSIS
 # File: DATA CLEANING
 # Module: CEGE0097
-# Student no.: 20198829, 20164326 ...
+# Student no.: 20198829, 20164326, 20174920 
 # Date: 22 JANUARY 2022
 
 # To run this code, set the work directory to folder containing the provided data.
@@ -192,20 +192,15 @@ pp_black_borough <- pp_black_lst[3]
 
 
 ################### DANNI: Add your PRE-PROCESSING bits below ###################
-# (CLAUDIA) I have added what looked like pre-processing for the overall SS dataset and 
-# specific variables here so I can start my script. I commented out any visuals (barplots & ggplots) since 
-# those will need to be put in script 2. Double check that your sections contain 
-# all of pre-processing required for visuals/non-spatialEDA/ESDA scripts.
 
 ### (CLAUDIA) COMMENT: You created a MEAN_PP variable - Is it needed for your final analyses? 
-# If so, either add to both your scrip 2 section & ESDA script, 
-# or check with tommy's section cause it may be useful for all of our scripts 
+# (DANNI) No - i'm not really sure when or why i created it but it would be better to use Tommy's more detailed data
 
 ### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
-# the variables you want in the regression. For the moment I am using the ss_ward2
-# file which only looks at ss_occurance. It will be more interesting to have a few datasets
-# that differ ss_occurance by select race and gender 
+# the variables you want in the regression.
 # (i.e. ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
+# (DANNI) I will work on this tomorrow and let you know :) 
+
 
 # 1.2b Stop and Search #### 
 
@@ -265,6 +260,7 @@ count(is.na(ss_ward2@data$ss_occurance))
 
 
 # SS: Gender (>80% men) - COMBINE EMPTY VALUES WITH 'OTHER' (or not?) !!
+
 
 table(ss@data$Gender) # -> gives count per gender 
 #       Female   Male  Other 
