@@ -41,6 +41,7 @@ ward <- readOGR(dsn="./London_Shapefiles/London_Ward.shp") # .shp for individual
 ward <- spTransform(ward, CRS(proj)) 
 
 
+
 #### 2. CLEAN & AGGREGATE DATA ####
 # Check missing values
 sapply(crime, function(x) sum(is.na(x)))
@@ -100,7 +101,6 @@ pp_ag <- pp %>%
   summarise_at(vars(names), mean)
 
 
-
 pp_ag$mean_pp <- rowMeans(pp_ag[-1]) # create new column called mean_pp 
 pp_mean <- subset (pp_ag, select = c(DISTRICT, mean_pp))
 
@@ -145,7 +145,6 @@ names(ss_ag) <- c('NAME', 'ss_occurance')
 ss_ward <- merge(ward, ss_ag, by='NAME')  # ss_ag -> 595 rows // 
 
 
-
 # ss_ward2 is created because i am trying to make the length of ...
 # ..ss_occurance and NAME the same (important for later functions)
 ss_ward2 <- merge(x = ward, y = ss_ag, all.x = FALSE)
@@ -157,10 +156,7 @@ length(which(table(ss_ward2$NAME)>1)) # 19 rows of ward names are duplicated
 # 614 - 19 = 595 
 
 
-
-
 # Abbey // barnhill -> examples of districts whose names are repeated
-
 ordered_ss_ward2 <- ss_ward2[order(ss_ward2$NAME),]
 sub <- subset(ss_ward2@data, ss_ward2@data$NAME == "Abbey") #ignore
 
@@ -254,7 +250,14 @@ crime_choro <- leaflet(crime_ward) %>%
   addPolygons( stroke = FALSE, fillOpacity = 0.7, smoothFactor = 0.5, color = ~colorQuantile("YlOrRd", crime_occurance)(crime_occurance) )
 crime_choro
 
-ss_choro <- leaflet(ss_ward) %>% 
+ss_choro <- leaflet(ss_ward) %>%  # USE OF SS_WARD -> DISTRICTS WITH EMPTY SS OCCURANCE VALUES COLOURED GREY
+  addProviderTiles("CartoDB.Positron")  %>% 
+  setView(-0.1257400, 51.5085300, zoom = 10) %>%
+  addPolygons( stroke = FALSE, fillOpacity = 0.7, smoothFactor = 0.5, color = ~colorQuantile("YlOrRd", ss_occurance)(ss_occurance) )
+ss_choro
+
+
+ss_choro <- leaflet(ss_ward2) %>%   # USE OF SS_WARD2 -> DISTRICTS WITH EMPTY SS OCCURANCE LEFT OUT (AKA TRANSPARENT)
   addProviderTiles("CartoDB.Positron")  %>% 
   setView(-0.1257400, 51.5085300, zoom = 10) %>%
   addPolygons( stroke = FALSE, fillOpacity = 0.7, smoothFactor = 0.5, color = ~colorQuantile("YlOrRd", ss_occurance)(ss_occurance) )
@@ -268,7 +271,7 @@ pp_choro
 
 
 
-#### 4. NON-SPATIAL EDA ####
+#### 4. NON-SPATIAL EDA - created by Claudia ####
 
 # Look at Crime data
 colnames(crime@data)
@@ -294,7 +297,7 @@ for (i in colnames(pp)){
   print(paste(i, sd(pp[[i]])))
 }
 
-##### 4a. Continuous Variables ####
+##### 4a. Continuous Variables - created by claudia ####
 
 
 # Mean police perceptions - normaly distributed 
@@ -308,7 +311,7 @@ ggplot(pp, aes(rowMeans(pp[-1]))) +
   stat_function(fun = dnorm, args = list(mean = mean(rowMeans(pp[-1])), sd = sd(rowMeans(pp[-1]))))
 
 
-#### 4b. Categorical Variables ####
+#### 4b. Categorical Variables - Crime stuff ####
 
 
 
@@ -330,62 +333,60 @@ ggplot(data=crime@data, aes(x=Crime.type, y=mean_pp)) +
 
 
 
-# **** SS GENDER DATA *** 
-# SS: Gender (>80% men) - COMBINE EMPTY VALUES WITH 'OTHER' (or not?) !!
-
-table(ss@data$Gender) # -> gives count per gender 
-#       Female   Male  Other 
-#  100    568   8383      3 
-
-table2 <- table(ss@data$Gender)
-prop.table(table2) # gives proportions per gender 
-round(prop.table(table2) ,3)  # proportions rounded to 3 dp 
-
-
-# frequency table per gender including empties 
-x <- prop.table(table(ss@data$Gender))
-par(fig=c(0,1,0.3,1), new=FALSE)
-barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
-
-
-# plot mean_pp per gender (F / M / O) -> excluding empties
-ggplot(data=ss@data[ss@data$Gender!="",], aes(x=Gender, y=mean_pp)) + 
-  geom_boxplot()+
-  coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
-
-
-# make new dataframe getting rid of gender empties
-updated_genders <- data.frame(ss@data[ss@data$Gender != "",])
-typeof(updated_genders)
-
-
-# plot updated df 
-ggplot(data=updated_genders, aes(x=Gender, y=mean_pp)) + 
-  geom_boxplot()+
-  coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
 
 
 
 
+
+
+
+# SS OVERVIEW statistics ----------------------------------------------------------
+
+summary(ss_ag) # summary statistics for ss_occurance
+#   ss_occurance   
+#   Min.   :  1.00  
+#   1st Qu.:  5.00  
+#   Median : 11.00  
+#   Mean   : 16.15  
+#   3rd Qu.: 19.00  
+#   Max.   :179.00  
+
+
+# ss occurance histogram
+ggplot(data=ss_ag, aes(ss_ag$ss_occurance)) +
+  geom_histogram()+ 
+  labs(title="Stop and Search occurances histogram",x="Occurance", y = "Count")
 
 
 # SS -> EDA : AGE DATA -------------------------------------------------------------
 
 
 # **** SS AGE DATA *** 
-# SS: Age (>35% are 18-24) (<25% are 25-34) - LABEL EMPTY VALUES WITH 'OTHER' (done) !!
 
 table(ss@data$Age.range) # original data with empty category
 #        10-17    18-24    25-34  over 34 under 10 
 # 398     1764     3389     2030     1472        1 
-                  
-    
-# Rename empty age bracket -> using https://www.marsja.se/how-to-rename-factor-levels-in-r-dplyr/#:~:text=How%20do%20I%20Rename%20Factor,%2C%20%22Factor%203%22)%20.
-# Attempt 3 - this should work:
+
+
+# Rename empty age bracket -> used https://www.marsja.se/how-to-rename-factor-levels-in-r-dplyr/#:~:text=How%20do%20I%20Rename%20Factor,%2C%20%22Factor%203%22)%20.
+# renaming is very tempermental - but not sure if this is just my computer so have used all 3 methods 
+
+# attempt 1 
 levels(ss@data$Age.range) <- c("Unknown", "10-17", "18-24", "25-34", "over 34", "Under 10")
-levels(ss@data$Age.range) 
-table(ss@data$Age.range)
-                              
+
+
+# Attempt 2  -
+# levels(ss@data$Age.range)[levels(ss@data$Age.range)==""] <-"Unknown" 
+
+
+# attempt 3:
+# ss@data$Age.range <- recode_factor(ss@data$Age.range, " " = "NOT STATED")
+
+
+levels(ss@data$Age.range) # this shows new category names 
+table(ss@data$Age.range) # these new category names don't always update in the table ^
+# hence the three methods in case one doesn't work
+
 
 
 # bar chart - ss occurances per age bracket
@@ -403,18 +404,18 @@ ggplot(data=ss@data, aes(x=Age.range, y=mean_pp)) +
 
 
 
-# SS -> EDA : SS ETHNICITY DATA EDA ------------------------------------------------------------
+# SS -> EDA : SS (self defined) ETHNICITY DATA EDA ------------------------------------------------------------
 
 
 # *** SS ETHNICITY DATA ***
 
 # ethnicity data aggregated into "", white, black, mixed, chinese or other, asian, not stated
 ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity, 
-             "White" = grep("White - ", ss@data$Self.defined.ethnicity, value = TRUE),
-             "Black or Black British" = grep("Black or Black British -", ss@data$Self.defined.ethnicity, value = TRUE),
-             "Mixed" = grep("Mixed -", ss@data$Self.defined.ethnicity, value = TRUE),
-             "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
-             "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
+                                              "White" = grep("White - ", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Black or Black British" = grep("Black or Black British -", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Mixed" = grep("Mixed -", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
 
 
 
@@ -446,7 +447,7 @@ round(prop.table(table5) , 3)
 x <- prop.table(table(ss@data$Self.defined.ethnicity))
 par(fig=c(0,1,0.3,1), new=FALSE)
 barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
-             
+
 
 # box plot -> ss by self defined ethnicity vs mean police perception
 ggplot(data=ss@data, aes(x=Self.defined.ethnicity, y=mean_pp), las =3) + 
@@ -454,7 +455,7 @@ ggplot(data=ss@data, aes(x=Self.defined.ethnicity, y=mean_pp), las =3) +
   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
 
 
-# MEAN AND MEDIAN POLICE PERCEPTION BY (SELF DEFINED) SS ETHNICITY:
+# MEAN AND MEDIAN POLICE PERCEPTION BY (SELF DEFINED) SS ETHNICITY: 
 
 # SS_WHITE 
 ss_white <- subset(ss@data, ss@data$Self.defined.ethnicity == "White")
@@ -575,6 +576,43 @@ ggplot(data=ss@data, aes(x=Outcome, y=mean_pp)) +
 
 # SS -> EDA: GENDER ---------------------------------------------------------------------
 
+
+table(ss@data$Gender) # -> gives COUNT per gender / note the empty field with a count of 100 
+#       Female   Male  Other 
+#  100    568   8383      3 
+
+
+table2 <- table(ss@data$Gender)
+prop.table(table2) 
+round(prop.table(table2) ,3)  # gives -> PROPORTIONS rounded to 3 dp 
+#     Female   Male  Other 
+#0.011  0.063  0.926  0.000 
+
+
+# GENDER BAR CHART (Frequency) -> M / F/ O / "" 
+x <- prop.table(table(ss@data$Gender))
+par(fig=c(0,1,0.3,1), new=FALSE)
+barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
+
+
+
+# make new dataframe getting rid of gender empties
+updated_genders <- data.frame(ss@data[ss@data$Gender != "",])
+
+table(updated_genders$Gender)
+# Female   Male  Other 
+#    568   8383      3 
+
+
+# BOXPLOT -> M / F / O 
+ggplot(data=updated_genders, aes(x=Gender, y=mean_pp)) + 
+  geom_boxplot()+
+  coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
+
+
+
+# POLICE PERCEPTIONS PER GENDER: 
+
 # FEMALE only data
 ss_female <- subset(ss@data, ss@data$Gender == "Female")
 median(ss_female$mean_pp) # Median police perception when person stopped = F --> 70.74074
@@ -589,7 +627,9 @@ mean(ss_male$mean_pp) #71.09726
 
 
 
-# Global Morans I (ss_occurance) ------------------------------------------
+
+
+# SS -> Global Morans I (ss_occurance) ------------------------------------------
 
 
 # ** Using ss_ward2 for all autocorrelation measures for continuity **
@@ -654,7 +694,7 @@ moran.mc(ss_ward2@data$ss_occurance, Wl3, nsim=999, na.action=na.omit)
 
 # stop and search semi variogram -> using stop and search occurrence per ward 
 ss_semivar <- variogram(ss_ward2@data$ss_occurance~1, ss_ward2)
- 
+
 ss_var_fit <- fit.variogram(ss_semivar, vgm("Sph")) # models: "Exp", "Sph", "Gau", "Mat
 
 plot(ss_semivar, ss_var_fit)
@@ -662,7 +702,7 @@ plot(ss_semivar, ss_var_fit)
 summary(ss_semivar) 
 
 
-# local autocorrelation -> Local Moran scatterplot ---------------------------------------------------
+# SS -> local autocorrelation -> Local Moran scatterplot ---------------------------------------------------
 
 # Morans scatterplot 
 
@@ -679,7 +719,7 @@ moran.plot(ss_ward2@data$ss_occurance, Wl2, xlab="Stop and Search occurance",
 
 
 
-# Local Morans I Statistic ------------------------------------------------
+# SS -> Local Morans I Statistic ------------------------------------------------
 
 
 Ii <- localmoran(ss_ward2$ss_occurance, Wl2)
@@ -734,6 +774,24 @@ ss_ward2$Ii_adj_sig[which(ss_ward2$Ii_p_adjusted < 0.05)] <- "significant"
 table(ss_ward2$Ii_adj_sig) # adjusted p values at 0.05 level gives 40 significant wards
 
 tm_shape(ss_ward2) + tm_polygons(col="Ii_adj_sig", palette="-RdBu")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
