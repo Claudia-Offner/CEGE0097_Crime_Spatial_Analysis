@@ -128,7 +128,6 @@ sapply(ss@data, function(x) sum(is.na(x)))
 ss@data <- na.omit(ss@data)
 
 
-# install point.in.polygon -> package associated 
 # ss_ag is the the name of the distructs and the ss_occurance values
 ss_ag <- aggregate(ss@data$NAME, list(ss@data$NAME), length)
 names(ss_ag) <- c('NAME', 'ss_occurance')
@@ -144,7 +143,6 @@ names(ss_ag) <- c('NAME', 'ss_occurance')
 # ss_ag only has 595 
 ss_ward <- merge(ward, ss_ag, by='NAME')  # ss_ag -> 595 rows // 
 
-
 # ss_ward2 is created because i am trying to make the length of ...
 # ..ss_occurance and NAME the same (important for later functions)
 ss_ward2 <- merge(x = ward, y = ss_ag, all.x = FALSE)
@@ -155,14 +153,122 @@ nrow(ss_ag) # 595
 length(which(table(ss_ward2$NAME)>1)) # 19 rows of ward names are duplicated 
 # 614 - 19 = 595 
 
-
-# Abbey // barnhill -> examples of districts whose names are repeated
-ordered_ss_ward2 <- ss_ward2[order(ss_ward2$NAME),]
-sub <- subset(ss_ward2@data, ss_ward2@data$NAME == "Abbey") #ignore
-
-
 ss_ward2_data <- ss_ward2@data
-count(is.na(ss_ward2@data$ss_occurance)) # no NA values in ss_occurance 
+count(is.na(ss_ward2@data$ss_occurance)) # no NA values in ss_occurance
+
+
+# Creating SS_WARD per ethnicity  ------------------------------
+
+# THIS CODE IS COPIED FROM "SS -> EDA : SS (self defined) ETHNICITY DATA EDA"
+
+# ethnicity data aggregated into "", white, black, mixed, chinese or other, asian, not stated
+ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity, 
+                                              "White" = grep("White - ", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Black or Black British" = grep("Black or Black British -", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Mixed" = grep("Mixed -", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
+                                              "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
+
+table4 <- table(ss@data$Self.defined.ethnicity) # We still have the empty category 
+round(prop.table(table4) , 3) 
+
+# Change empty ethnicity fields to "Not Stated (NS)"
+levels(ss@data$Self.defined.ethnicity)[levels(ss@data$Self.defined.ethnicity)==""] <-"Not Stated (NS)" 
+
+
+
+# subset ss@data -> then aggregate to ss_ag -> then merge to ward 
+
+
+# CREATING SS_WARD_WHITE
+ss_white <- subset(ss@data, ss@data$Self.defined.ethnicity == "White")
+head(ss_white)
+
+ss_ag_white <- aggregate(ss_white$NAME, list(ss_white$NAME), length)
+names(ss_ag_white) <- c('NAME', 'ss_occurance')
+
+ss_ward2_white <- merge(x = ward, y = ss_ag_white, all.x = FALSE)
+
+# ttm()
+# tm_shape(ss_ward2_white)+tm_polygons("ss_occurance") 
+
+
+
+# CREATING SS_WARD_BLACK
+ss_black <- subset(ss@data, ss@data$Self.defined.ethnicity == "Black or Black British")
+head(ss_black)
+
+ss_ag_black <- aggregate(ss_black$NAME, list(ss_black$NAME), length)
+names(ss_ag_black) <- c('NAME', 'ss_occurance')
+
+ss_ward2_black <- merge(x = ward, y = ss_ag_black, all.x = FALSE)
+# tm_shape(ss_ward2_black)+tm_polygons("ss_occurance") 
+
+
+# CREATING SS_WARD_ASIAN
+ss_asian <- subset(ss@data, ss@data$Self.defined.ethnicity == "Asian or Asian British")
+head(ss_Asian)
+
+ss_ag_asian <- aggregate(ss_asian$NAME, list(ss_asian$NAME), length)
+names(ss_ag_asian) <- c('NAME', 'ss_occurance')
+
+ss_ward2_asian <- merge(x = ward, y = ss_ag_asian, all.x = FALSE)
+# tm_shape(ss_ward2_asian)+tm_polygons("ss_occurance") 
+
+
+
+# CREATING SS_WARD_mixed
+ss_mixed <- subset(ss@data, ss@data$Self.defined.ethnicity == "Mixed")
+head(ss_mixed)
+
+ss_ag_mixed <- aggregate(ss_mixed$NAME, list(ss_mixed$NAME), length)
+names(ss_ag_mixed) <- c('NAME', 'ss_occurance')
+
+ss_ward2_mixed <- merge(x = ward, y = ss_ag_mixed, all.x = FALSE)
+# tm_shape(ss_ward2_mixed)+tm_polygons("ss_occurance") 
+
+
+
+# CREATING SS_WARD_chinese_other
+ss_chinese_other <- subset(ss@data, ss@data$Self.defined.ethnicity == "Chinese or other ethnic group")
+head(ss_chinese_other)
+
+ss_ag_chinese_other <- aggregate(ss_chinese_other$NAME, list(ss_chinese_other$NAME), length)
+names(ss_ag_chinese_other) <- c('NAME', 'ss_occurance')
+
+ss_ward2_chinese_other <- merge(x = ward, y = ss_ag_chinese_other, all.x = FALSE)
+# tm_shape(ss_ward2_chinese_other)+tm_polygons("ss_occurance") 
+
+
+
+
+
+# Creating ss_ward per gender ---------------------------------------------
+
+
+# SS FEMALE 
+ss_female <- subset(ss@data, ss@data$Gender == "Female")
+head(ss_female)
+
+ss_ag_female <- aggregate(ss_female$NAME, list(ss_female$NAME), length)
+names(ss_ag_female) <- c('NAME', 'ss_occurance')
+
+ss_ward2_female <- merge(x = ward, y = ss_ag_female, all.x = FALSE)
+# tm_shape(ss_ward2_female)+tm_polygons("ss_occurance") 
+
+
+# SS MALE
+ss_male <- subset(ss@data, ss@data$Gender == "Male")
+head(ss_male)
+
+ss_ag_male <- aggregate(ss_male$NAME, list(ss_male$NAME), length)
+names(ss_ag_male) <- c('NAME', 'ss_occurance')
+
+ss_ward2_male <- merge(x = ward, y = ss_ag_male, all.x = FALSE)
+#tm_shape(ss_ward2_male)+tm_polygons("ss_occurance") 
+
+
+
 
 
 #### 2c. Crime ####
@@ -194,6 +300,7 @@ crime_ward <- merge(ward, crime_ag, by='NAME')
 
 
 #### 2d. Combine All Data ####
+
 
 df <- merge(crime_ward, ss_ward, by='NAME')
 df <- merge(df, pp_mean, by='DISTRICT')
@@ -409,20 +516,25 @@ ggplot(data=ss@data, aes(x=Age.range, y=mean_pp)) +
 
 # *** SS ETHNICITY DATA ***
 
+
+# **** ALL OF THIS HAS BEEN COMMENTED OUT AND COPIED INTO THE 'MERGING WARD POLYGONS SECTION"
+# BECAUSE I NEEDED THE ETHNICITY DATA AGGREGATED TO CREATE THE NEW MERGED SS_WARDS PER ETHNICITY ****
+
+
 # ethnicity data aggregated into "", white, black, mixed, chinese or other, asian, not stated
-ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity, 
-                                              "White" = grep("White - ", ss@data$Self.defined.ethnicity, value = TRUE),
-                                              "Black or Black British" = grep("Black or Black British -", ss@data$Self.defined.ethnicity, value = TRUE),
-                                              "Mixed" = grep("Mixed -", ss@data$Self.defined.ethnicity, value = TRUE),
-                                              "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
-                                              "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
+#ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity, 
+ #                                             "White" = grep("White - ", ss@data$Self.defined.ethnicity, value = TRUE),
+  #                                            "Black or Black British" = grep("Black or Black British -", ss@data$Self.defined.ethnicity, value = TRUE),
+   #                                           "Mixed" = grep("Mixed -", ss@data$Self.defined.ethnicity, value = TRUE),
+    #                                          "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
+     #                                         "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
 
 
 
-table4 <- table(ss@data$Self.defined.ethnicity) # We still have the empty category 
-round(prop.table(table4) , 3) 
+#table4 <- table(ss@data$Self.defined.ethnicity) # We still have the empty category 
+#round(prop.table(table4) , 3) 
 
-#                Asian or Asian British        Black or Black British Chinese or other ethnic group 
+#                Asian or Asian British        Black or Black British     Chinese or other ethnic group 
 #0.010                         0.117                         0.332                         0.021 
 
 #Mixed               Not Stated (NS)                         White 
@@ -430,11 +542,11 @@ round(prop.table(table4) , 3)
 
 
 # Change empty ethnicity fields to "Not Stated (NS)"
-levels(ss@data$Self.defined.ethnicity)[levels(ss@data$Self.defined.ethnicity)==""] <-"Not Stated (NS)" 
+#levels(ss@data$Self.defined.ethnicity)[levels(ss@data$Self.defined.ethnicity)==""] <-"Not Stated (NS)" 
 
 
-table5 <- table(ss@data$Self.defined.ethnicity) # Updated table -> merges empty field with NS 
-round(prop.table(table5) , 3) 
+#table5 <- table(ss@data$Self.defined.ethnicity) # Updated table -> merges empty field with NS 
+#round(prop.table(table5) , 3) 
 
 # Not Stated (NS)        Asian or Asian British        Black or Black British Chinese or other ethnic group 
 # 0.105                         0.117                         0.332                         0.021 
