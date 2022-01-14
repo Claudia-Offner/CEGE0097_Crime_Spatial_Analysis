@@ -79,3 +79,20 @@ rm(list=ls()[! ls() %in% c("crime", "borough", "ward", "proj")])
       
      #  GETIS ORD -> G AND G* not working
      # Thinkng of doing in R. 
+
+     NbrL <- dnearneigh(coordinates(crime_ward_2), 0, 5000)
+      D <- nb2listw(NbrL, style="B")
+      D_star <- nb2listw(include.self(NbrL), style="B")
+      
+      G <- globalG.test(crime_ward_2@data$crime_occurance, D)
+      G <- globalG.test(crime_ward_2@data$crime_occurance, D_star)
+      
+      Gi <- localG(crime_ward_2@data$crime_occurance, D)
+      crime_ward_2@data$Gi <- Gi
+      Gi_star <- localG(crime_ward_2@data$crime_occurance, D_star)
+      crime_ward_2@data$Gi <- Gi
+      crime_ward_2@data$Gi_star <- Gi_star
+      
+      tm_shape(crime_ward_2) + tm_polygons(col="Gi_star", palette="-RdBu", style="quantile")
+      
+      
