@@ -455,6 +455,8 @@ table(ss@data$Outcome)
 # that differ crime_occurance by a few select crime types 
 # (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
+# Reply: Yes, I was thinking of doing something on same line. Also, I didn't get why station and popualtion is added? For plotting regression?  
+
 
 # 1.2c Crime #### 
 
@@ -477,11 +479,51 @@ crime@data <- na.omit(crime@data)
 # need to be counted and examined separately, and this will be determined by 
 # non spatial EDA
 #_______________________________________________________________________________
+
 crime_ag <- aggregate(crime@data$NAME, list(crime@data$NAME), length)
 names(crime_ag) <- c('NAME', 'crime_occurance')
 
 # Create polygon data from point count
 crime_ward <- merge(ward, crime_ag, by='NAME') 
+ #ward: 657 rows,crime_ag: 631
+
+
+# Add pp_mean to ss and crime datasets
+crime <- merge(crime, pp_mean, by='DISTRICT')
+      
+# There is no police perception data for city of London, so drop these points :(
+sapply(crime@data, function(x) sum(is.na(x)))
+crime@data <- na.omit(crime@data)
+      
+#merge to wards shp
+crime_ward_2 <-merge(x=ward, y=crime_ag, all.x = FALSE)
+nrow(crime_ward_2) # 650
+length(which(table(crime_ward_2$NAME)>1)) # 19 rows were duplicated
+# 650 row minus 19 duplicates= 631
+(which(table(crime_ward_2$NAME)>1))
+crime_ward_2@data
+      
+crime_ward_2_data <- crime_ward_2@data
+count(is.na(crime_ward_2@data$crime_occurance))
+      
+#----------------------------------------------------------------------------------------------------
+      
+table(crime@data$Crime.type)
+ # 2 major crimes :
+ # Anti-social behaviour : 21825, Violence and sexual offences : 17621, Other theft: 8891, Vehicle crime :7490 
+      
+table2 <- table(crime@data$Crime.type)
+prop.table(table2) # gives proportions per crimes
+round(prop.table(table2) ,3)  # proportions rounded to 3 dp 
+      
+# make new dataframe getting rid of crime empties
+updated_crime <- data.frame(crime@data[crime@data$Crime.type != "",])
+typeof(updated_crime)
+#----------------------------------------------------------------------------
+# Anti-social behaviour
+asb <- subset(crime@data, crime@data$Crime.type == 'Anti-social behaviour')
+asb
+      
 
 
 # 1.2d Stations & Population ####
@@ -519,6 +561,8 @@ pop_ward <- merge(ward, pop, by='GSS_CODE')
 pop_ward@data <- pop_ward@data[order(pop_ward@data$BOROUGH), ]
 rownames(pop_ward@data) <- seq(length=nrow(pop_ward@data))
 sapply(pop_ward@data, function(x) sum(is.na(x)))
+       
+
 
 # Merge missing data on NAME 
 missing <- pop_ward[rowSums(is.na(pop_ward@data)) > 0, drop = FALSE]
@@ -550,4 +594,5 @@ pop_ward <- rbind(pop_ward, missing)
 
 # tm_shape(pop_ward)+tm_polygons("Population_Density_km2_2013", palette="-RdBu", style="quantile")
 
+      
 
