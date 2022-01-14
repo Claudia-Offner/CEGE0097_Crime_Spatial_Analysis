@@ -150,7 +150,7 @@ plot(ss_ward2)
 
 nrow(ss_ward2) # 614 
 nrow(ss_ag) # 595
-length(which(table(ss_ward2$NAME)>1)) # 19 rows of ward names are duplicated 
+length(which(table(ss_ward2$NAME)>2)) # 19 rows of ward names are duplicated 
 # 614 - 19 = 595 
 
 ss_ward2_data <- ss_ward2@data
@@ -756,13 +756,15 @@ tm_shape(ss_ward)+tm_polygons()
 
 # GLOBAL SPATIAL AUTOCORRELATION MEASURES -> MORANS I 
 neighbours3 <- poly2nb(ss_ward2, row.names = ss_ward2@data$GSS_CODE) # create list of neighbours -> ward2
-W3 <- nb2mat(neighbours3, style="W") # create spatial weight matrix
+W3 <- nb2mat(neighbours3, style="W") # create spatial weight matrix / w = row standardised 
 colnames(W3) <- rownames(W3)
 ss_ward2$rowID <-  rownames(ss_ward2@data$GSS_CODE) 
 tm_shape(ss_ward2)+tm_polygons()+tm_text(text="GSS_CODE") 
 
 Wl3 <- nb2listw(neighbours3) # a listw object is a weights list for use in autocorrelation measures.
 moran.test(ss_ward2@data$ss_occurance, Wl3, na.action=na.omit) # omit NA values
+
+
 
 #Moran I statistic standard deviate = 11.571, p-value < 2.2e-16
 # alternative hypothesis: greater
@@ -780,8 +782,10 @@ moran.test(ss_ward2@data$ss_occurance, Wl3, na.action=na.omit) # omit NA values
 
 # Moran Test using Monte-Carlo simulation
 
-moran.mc(ss_ward2@data$ss_occurance, Wl3, nsim=999, na.action=na.omit) 
+mc <- moran.mc(ss_ward2@data$ss_occurance, Wl3, nsim=999, na.action=na.omit) 
+plot(mc)
 #data:  ss_ward@data$ss_occurance 
+
 # weights: Wl 
 # omitted: 9, 20, 23, 24, 28, 40, 45, 54, 62, 149, 159, 276, 300, 306, 308, 312, 379, 386, 432, 449, 517, 576, 633, 635, 636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 647, 649, 650, 651, 652, 653, 654, 655, 657 
 # number of simulations + 1: 1000 
@@ -791,6 +795,23 @@ moran.mc(ss_ward2@data$ss_occurance, Wl3, nsim=999, na.action=na.omit)
 
 
 
+# code from: https://mgimond.github.io/simple_moransI_example/
+# A visual exercise that you can perform to assess how “typical” or “atypical” your pattern may 
+# be relative to a randomly distributed pattern is to plot your observed pattern alongside a
+# few simulated patterns generated under the null hypothesis.
+
+ttm()
+
+set.seed(131)
+ss_ward2$random1 <- sample(ss_ward2$ss_occurance, length(ss_ward2$ss_occurance), replace = FALSE)
+ss_ward2$random2 <- sample(ss_ward2$ss_occurance, length(ss_ward2$ss_occurance), replace = FALSE)
+
+tm_shape(ss_ward2) + tm_fill(col=c("ss_occurance", "random1", "random2"),
+                      style="quantile", n=8, palette="YlOrRd", legend.show = TRUE,
+                      title = c("Stop & Search Occurances", "Randomised Data 1",
+                                "Randomised Data 2")) +
+                      tm_layout (legend.position = c( "left", "bottom")) +
+                      tm_facets( nrow=1)
 
 
 
@@ -806,12 +827,11 @@ moran.mc(ss_ward2@data$ss_occurance, Wl3, nsim=999, na.action=na.omit)
 
 # stop and search semi variogram -> using stop and search occurrence per ward 
 ss_semivar <- variogram(ss_ward2@data$ss_occurance~1, ss_ward2)
-
 ss_var_fit <- fit.variogram(ss_semivar, vgm("Sph")) # models: "Exp", "Sph", "Gau", "Mat
-
 plot(ss_semivar, ss_var_fit)
 
-summary(ss_semivar) 
+
+# NOT USING THE SEMI VARIOGRAM FOR MINE ^^^^ - LOOK AT NOTES
 
 
 # SS -> local autocorrelation -> Local Moran scatterplot ---------------------------------------------------
@@ -825,6 +845,8 @@ moran.plot(ss_ward2@data$ss_occurance, Wl2, xlab="Stop and Search occurance",
            ylab="Spatailly lagged SS occurance", labels=ss_ward2@data$DISTRICT)
 
 
+
+
 # GETIS ORD G AND G* ------------------------------------------------------
 
 # GETIS ORD -> G AND G* ARE DONE ON ARCGIS PRO -> look in notion for results 
@@ -834,10 +856,17 @@ moran.plot(ss_ward2@data$ss_occurance, Wl2, xlab="Stop and Search occurance",
 # SS -> Local Morans I Statistic ------------------------------------------------
 
 
-Ii <- localmoran(ss_ward2$ss_occurance, Wl2)
 
-ss_ward2$Ii <- Ii[,"Ii"]
-ss_ward2$Ii_z <- Ii[,"Z.Ii"]
+# LOCAL MORAN WITH PERMUTATIONS (nsim = 99)
+Ii_perm <- localmoran_perm(ss_ward2$ss_occurance, Wl2, nsim = 999)
+ss_ward2$perm_Ii <- Ii_perm[,"Ii"] # local moran statistic 
+ss_ward2$perm_Ii_expected <- Ii_perm[,"E.Ii"] # expected local moran statistic
+
+ss_ward2$perm_Ii_z <- Ii_perm[,"Z.Ii"] # z scores for local moran statistic (how many s.d. above or below the mean)
+ss_ward2$perm_Ii_p_unadjusted <- Ii_perm[,"Pr(z != E(Ii))"]  # puts all p values where z != expected (unadjusted p vaues)
+
+
+
 
 # plot local moran i statistic 
 # A positive value for I indicates that a feature has neighboring features with
@@ -845,47 +874,88 @@ ss_ward2$Ii_z <- Ii[,"Z.Ii"]
 # A negative value for I indicates that a feature has neighboring features with 
 # dissimilar values; this feature is an outlier.
 
-tm_shape(ss_ward2) + tm_polygons(col="Ii", palette="-RdBu", style="quantile")
+# Plots the expected Ii values (random)
+ttm()
+tm_shape(ss_ward2) + 
+  tm_polygons(col= c("perm_Ii_expected"), palette="-RdBu", 
+              title = c("Expected Local Moran I"),
+              style = "kmeans",
+              midpoint = 0)
+
+
+# plot real local moran i statistics 
+tm_shape(ss_ward2) + 
+  tm_polygons(col= c("perm_Ii"), palette="-RdBu", 
+              style = "kmeans",
+              title = c("Local Moran I"),
+              midpoint = 0) 
+
+
+# POSITIVE II VALUES WITH P-VALUE 
+positive_lm <- subset(ss_ward2, ss_ward2$perm_Ii > 0 & ss_ward2$perm_Ii_p_unadjusted < 0.05) # subset of ss_ward2 where localmoran statistic is positive (aka indicates area is surrounded by similar areas )
+nrow(positive_lm) 
+
+
+tm_shape(ss_ward2)+tm_polygons()+
+tm_shape(positive_lm) + 
+  tm_polygons(col= "perm_Ii", palette="YlOrRd", style="kmeans", title = "Local Moran I statistic (p < 0.05)")
+
+
+
+# NEGATIVE II VALUES WITH P-VALUE =
+negative_lm <- subset(ss_ward2, ss_ward2$perm_Ii < 0 & ss_ward2$perm_Ii_p_unadjusted < 0.05) 
+nrow(negative_lm) # 181
+
+tm_shape(ss_ward2)+tm_polygons()+
+tm_shape(negative_lm) + 
+  tm_polygons(col= "perm_Ii", palette="-RdYlBu", style="kmeans", title = "Local Moran I statistic (p < 0.05)") 
+
 
 # Plot local morans i z scores (aka showing how far each local moran i value is from the mean )
 # blue = below the mean // red = above the mean
-tm_shape(ss_ward2) + tm_polygons(col="Ii_z", palette="-RdBu", style="quantile")
-
-
-
-# his tutorial looks at P values (Pr) where the z score (spread) is < 0 
-# -> aka local moran values that are not identical to the mean 
-
-# ...Here we are looking at P values where the z score is not equal to the expected (E) score
-# specifically -> unadjusted p values
-ss_ward2$Ii_p_unadjusted <- Ii[,"Pr(z != E(Ii))"]  # puts all p values into separate subcolumn of ss_ward2
+tm_shape(ss_ward2) + tm_polygons(col= "perm_Ii_z", palette="-RdBu", style="kmeans", title = "Local Moran I Z scores")
 
 
 # IF YOU WANT TO CHANGE THE SIGNIFICANCE LEVEL -> 
 # AMEND THE NUMBER BELOW AND RE RUN ***ALL 3*** LINES OF CODE:
-ss_ward2$Ii_sig <- "non-significant"     # labels all rows non-significant 
-ss_ward2$Ii_sig[which(ss_ward2$Ii_p_unadjusted < 0.05)] <- "significant"   # re-labels as significant where associated p values are below set level 
-table(ss_ward2$Ii_sig) # un-adjusted p values at 0.05 level gives 64 significant wards
+ss_ward2$perm_Ii_sig <- "Non-significant"     # labels all rows non-significant 
+ss_ward2$perm_Ii_sig[which(ss_ward2$perm_Ii_p_unadjusted < 0.05)] <- "Significant"   # re-labels as significant where associated p values are below set level 
+
+# un-adjusted p values at 0.05 level gives 64 significant wards
+table(ss_ward2$perm_Ii_sig) 
 
 # Plot at given significance level
-tm_shape(ss_ward2) + tm_polygons(col="Ii_sig", palette="-RdBu")
+tm_shape(ss_ward2) + tm_polygons(col="Ii_sig", palette= "PuRd", title = "Districts with a significant local I statistic" )
+
+
+
 
 
 
 
 # Bonferroni adjustment: Prevent data from incorrectly appearing to be statistically significant
 # Adjusting -> P values
-Ii_adjusted <- localmoran(ss_ward2$ss_occurance, Wl2, p.adjust.method="bonferroni")
-ss_ward2$Ii_p_adjusted <- Ii_adjusted[,"Pr(z != E(Ii))"]
+Ii_adjusted <- localmoran_perm(ss_ward2$ss_occurance, Wl2, nsim = 999, p.adjust.method="bonferroni")
+
+ss_ward2$perm_Ii_p_adjusted <- Ii_adjusted[,"Pr(z != E(Ii))"]
 
 
 # IF YOU WANT TO CHANGE THE SIGNIFICANCE LEVEL -> 
 # AMEND THE NUMBER BELOW AND RE RUN ***ALL 3*** LINES OF CODE:
-ss_ward2$Ii_adj_sig <- "nonsignificant"
-ss_ward2$Ii_adj_sig[which(ss_ward2$Ii_p_adjusted < 0.05)] <- "significant"
-table(ss_ward2$Ii_adj_sig) # adjusted p values at 0.05 level gives 40 significant wards
+ss_ward2$perm_Ii_adj_sig <- "Non-significant"
+ss_ward2$perm_Ii_adj_sig[which(ss_ward2$perm_Ii_p_adjusted < 0.05)] <- "Significant"
 
-tm_shape(ss_ward2) + tm_polygons(col="Ii_adj_sig", palette="-RdBu")
+table(ss_ward2$perm_Ii_adj_sig) # adjusted p values at 0.05 level gives 40 significant wards
+
+# Non-significant     Significant 
+#     575              39 
+
+tm_shape(ss_ward2) + tm_polygons(col="perm_Ii_adj_sig", palette="PuRd", 
+                                 title ="Districts with a significant local I statistic (Bonferroni adjusted p values)")
+
+
+
+
 
 
 
