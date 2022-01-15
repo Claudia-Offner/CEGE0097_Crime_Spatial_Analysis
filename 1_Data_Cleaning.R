@@ -181,13 +181,6 @@ pp_black_borough <- pp_black_lst[3]
 
 
 
-################### DANNI: Add your PRE-PROCESSING bits below ###################
-### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
-# the variables you want in the regression.
-# (i.e. ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
-# (DANNI) I will work on this tomorrow and let you know :) 
-
-
 # 1.2b Stop and Search #### 
 
 # Create Point data from coordinate datasets
@@ -242,76 +235,9 @@ sub <- subset(ss_ward2@data, ss_ward2@data$NAME == "Abbey") #ignore
 ss_ward2_data <- ss_ward2@data
 count(is.na(ss_ward2@data$ss_occurance))
 
-#### SS Gender -------------------------------------------------------------
+#### Creating SS_WARD per ethnicity  ------------------------------
 
-
-# SS: Gender (>80% men) - COMBINE EMPTY VALUES WITH 'OTHER' (or not?) !!
-
-
-table(ss@data$Gender) # -> gives count per gender 
-#       Female   Male  Other 
-#  100    568   8383      3 
-
-table2 <- table(ss@data$Gender)
-prop.table(table2) # gives proportions per gender 
-round(prop.table(table2) ,3)  # proportions rounded to 3 dp 
-
-
-# # frequency table per gender including empties 
-# x <- prop.table(table(ss@data$Gender))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
-
-
-# # plot mean_pp per gender (F / M / O) -> excluding empties
-# ggplot(data=ss@data[ss@data$Gender!="",], aes(x=Gender, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
-
-
-# make new dataframe getting rid of gender empties
-updated_genders <- data.frame(ss@data[ss@data$Gender != "",])
-typeof(updated_genders)
-
-
-# # plot updated df 
-# ggplot(data=updated_genders, aes(x=Gender, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
-
-
-
-#### SS Age -------------------------------------------------------------
-
-
-# **** SS AGE DATA *** 
-# SS: Age (>35% are 18-24) (<25% are 25-34) - LABEL EMPTY VALUES WITH 'OTHER' (done) !!
-
-table(ss@data$Age.range) # original data with empty category
-#        10-17    18-24    25-34  over 34 under 10 
-# 398     1764     3389     2030     1472        1 
-
-# attempt 1 
-levels(ss@data$Age.range)[levels(ss@data$Age.range)==""] <-"OTHER"
-table(ss@data$Age.range)
-
-
-# x <- prop.table(table(ss@data$Age.range))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
-
-# ggplot(data=ss@data, aes(x=Age.range, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
-
-
-
-
-#### SS Self-defined Ethnicity ------------------------------------------------------------
-
-
-# *** SS ETHNICITY DATA ***
-# SS: Self.defined.ethnicity - NEEDS CATEGORICAL AGGREGATION (done)!!
+# THIS CODE IS COPIED FROM "SS -> EDA : SS (self defined) ETHNICITY DATA EDA"
 
 # ethnicity data aggregated into "", white, black, mixed, chinese or other, asian, not stated
 ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity, 
@@ -321,124 +247,107 @@ ss@data$Self.defined.ethnicity<- fct_collapse(ss@data$Self.defined.ethnicity,
                                               "Chinese or other ethnic group" = grep("Chinese or ", ss@data$Self.defined.ethnicity, value = TRUE),
                                               "Asian or Asian British" = grep("Asian or Asian British -", ss@data$Self.defined.ethnicity, value = TRUE))
 
-
-
-
 table4 <- table(ss@data$Self.defined.ethnicity) # We still have the empty category 
 round(prop.table(table4) , 3) 
-
-#                Asian or Asian British        Black or Black British Chinese or other ethnic group 
-#0.010                         0.117                         0.332                         0.021 
-
-#Mixed               Not Stated (NS)                         White 
-#0.047                         0.095                         0.379 
-
-
 
 # Change empty ethnicity fields to "Not Stated (NS)"
 levels(ss@data$Self.defined.ethnicity)[levels(ss@data$Self.defined.ethnicity)==""] <-"Not Stated (NS)" 
 
 
 
-table5 <- table(ss@data$Self.defined.ethnicity) # Updated table -> merges empty field with NS 
-round(prop.table(table5) , 3) 
-
-# Not Stated (NS)        Asian or Asian British        Black or Black British Chinese or other ethnic group 
-# 0.105                         0.117                         0.332                         0.021 
-
-#Mixed                         White 
-#0.047                         0.379 
+# subset ss@data -> then aggregate to ss_ag -> then merge to ward 
 
 
-# x <- prop.table(table(ss@data$Self.defined.ethnicity))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
+# CREATING SS_WARD_WHITE
+ss_white <- subset(ss@data, ss@data$Self.defined.ethnicity == "White")
+head(ss_white)
 
+ss_ag_white <- aggregate(ss_white$NAME, list(ss_white$NAME), length)
+names(ss_ag_white) <- c('NAME', 'ss_occurance')
 
-# ggplot(data=ss@data, aes(x=Self.defined.ethnicity, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
+ss_ward2_white <- merge(x = ward, y = ss_ag_white, all.x = FALSE)
+
+# ttm()
+# tm_shape(ss_ward2_white)+tm_polygons("ss_occurance") 
 
 
 
-#### SS Officer Defined Ethnicity  ----------------------------------------------
+# CREATING SS_WARD_BLACK
+ss_black <- subset(ss@data, ss@data$Self.defined.ethnicity == "Black or Black British")
+head(ss_black)
 
-# *** The officer-defined ethnicity of the person stopped ***
+ss_ag_black <- aggregate(ss_black$NAME, list(ss_black$NAME), length)
+names(ss_ag_black) <- c('NAME', 'ss_occurance')
 
-# SS: officer.defined.ethnicity (>40% white) (40% black) - COMBINE EMPTY VALUES WITH 'OTHER' !!
-
-ss@data$Officer.defined.ethnicity
-
-# x <- prop.table(table(ss@data$Officer.defined.ethnicity))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
+ss_ward2_black <- merge(x = ward, y = ss_ag_black, all.x = FALSE)
+# tm_shape(ss_ward2_black)+tm_polygons("ss_occurance") 
 
 
-# REPLACE EMPTY WITH "NOT STATED"
+# CREATING SS_WARD_ASIAN
+ss_asian <- subset(ss@data, ss@data$Self.defined.ethnicity == "Asian or Asian British")
+head(ss_asian)
 
-levels(ss@data$Officer.defined.ethnicity)[levels(ss@data$Officer.defined.ethnicity)=="CHECK"] <-"NOT STATED" 
-# THIS ONE WORKS^
+ss_ag_asian <- aggregate(ss_asian$NAME, list(ss_asian$NAME), length)
+names(ss_ag_asian) <- c('NAME', 'ss_occurance')
 
-table(ss@data$Officer.defined.ethnicity)
-
-
-# ggplot(data=ss@data, aes(x=Officer.defined.ethnicity, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
+ss_ward2_asian <- merge(x = ward, y = ss_ag_asian, all.x = FALSE)
+# tm_shape(ss_ward2_asian)+tm_polygons("ss_occurance") 
 
 
 
+# CREATING SS_WARD_mixed
+ss_mixed <- subset(ss@data, ss@data$Self.defined.ethnicity == "Mixed")
+head(ss_mixed)
 
-#### SS Object of Search --------------------------------------------------------
+ss_ag_mixed <- aggregate(ss_mixed$NAME, list(ss_mixed$NAME), length)
+names(ss_ag_mixed) <- c('NAME', 'ss_occurance')
 
-# SS: object.of.search (>60% Controlled drugs) (~35% articles for use in criminal damage)
-# x <- prop.table(table(ss@data$Object.of.search))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
+ss_ward2_mixed <- merge(x = ward, y = ss_ag_mixed, all.x = FALSE)
+# tm_shape(ss_ward2_mixed)+tm_polygons("ss_occurance") 
 
-# ggplot(data=ss@data, aes(x=Object.of.search, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
 
-# SS: outcome (>60% nothing found - no further action) (~20% suspect arrested)  - NEEDS CATEGORICAL AGGREGATION!!
 
-table(ss@data$Outcome)
+# CREATING SS_WARD_chinese_other
+ss_chinese_other <- subset(ss@data, ss@data$Self.defined.ethnicity == "Chinese or other ethnic group")
+head(ss_chinese_other)
 
-# Local resolution          Nothing found - no further action 
-# 94                                    6111 
-# Offender cautioned        Offender given drugs possession warning 
-# 14                                     740 
-#Offender given penalty notice        Suspect arrested 
-# 153                                    1873 
-# Suspect summonsed to court 
-# 69 
+ss_ag_chinese_other <- aggregate(ss_chinese_other$NAME, list(ss_chinese_other$NAME), length)
+names(ss_ag_chinese_other) <- c('NAME', 'ss_occurance')
 
-# x <- prop.table(table(ss@data$Outcome))
-# par(fig=c(0,1,0.3,1), new=FALSE)
-# barplot(x[order(x, decreasing = TRUE)], ylab = "Frecuency (%)", las=2)
-
-# ggplot(data=ss@data, aes(x=Outcome, y=mean_pp)) + 
-#   geom_boxplot()+
-#   coord_cartesian(ylim = quantile(ss@data$mean_pp, c(0, 0.97)))
+ss_ward2_chinese_other <- merge(x = ward, y = ss_ag_chinese_other, all.x = FALSE)
+# tm_shape(ss_ward2_chinese_other)+tm_polygons("ss_occurance") 
 
 
 
 
-################### PRATIBHA: Add your PRE-PROCESSING bits below ###################
 
-### (CLAUDIA) COMMENT: We need to combine all theft related variables into one variable
-# to simplify the regression analysis. Could you combine the following categories 
-# into a variables called'All_Theft'?:
-# Other Theft/Burglary/Shoplifting/Theft from the person/ Robbery/Bicycle theft
+#### Creating SS_WARD per gender ---------------------------------------------
 
-### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
-# the variables you want in the regression. For the moment I am using the crime_ward
-# file which only looks at crime_occurance. It will be more interesting to have a few datasets
-# that differ crime_occurance by a few select crime types 
-# (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
-# Reply: Yes, I was thinking of doing something on same line. Also, I didn't get why station and popualtion is added? For plotting regression?  
-# (CLAUDIA) - Great, I see you have done anti-social behaviour. if you cou
+# SS FEMALE 
+ss_female <- subset(ss@data, ss@data$Gender == "Female")
+head(ss_female)
+
+ss_ag_female <- aggregate(ss_female$NAME, list(ss_female$NAME), length)
+names(ss_ag_female) <- c('NAME', 'ss_occurance')
+
+ss_ward2_female <- merge(x = ward, y = ss_ag_female, all.x = FALSE)
+# tm_shape(ss_ward2_female)+tm_polygons("ss_occurance") 
+
+
+# SS MALE
+ss_male <- subset(ss@data, ss@data$Gender == "Male")
+head(ss_male)
+
+ss_ag_male <- aggregate(ss_male$NAME, list(ss_male$NAME), length)
+names(ss_ag_male) <- c('NAME', 'ss_occurance')
+
+ss_ward2_male <- merge(x = ward, y = ss_ag_male, all.x = FALSE)
+#tm_shape(ss_ward2_male)+tm_polygons("ss_occurance") 
+
+
+
+
 
 # 1.2c Crime #### 
 
@@ -490,7 +399,7 @@ crime_ward_2@data
 crime_ward_2_data <- crime_ward_2@data
 count(is.na(crime_ward_2@data$crime_occurance))
       
-#----------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------
       
 table(crime@data$Crime.type)
  # 2 major crimes :
