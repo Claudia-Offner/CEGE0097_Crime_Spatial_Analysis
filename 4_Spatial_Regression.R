@@ -32,7 +32,7 @@ sp.na.omit <- function(x, margin=1) {
   }
 }
 
-# 4.1 LOAD CLEANED DATA --------------------------------------------------------
+# 4.1 LOAD & PROCESS DATA --------------------------------------------------------
 
 suppressWarnings(source("1_Data_cleaning.R"))
 
@@ -53,11 +53,6 @@ pp_black_borough <- merge(borough, pp_black_borough[ , c(1,6:ncol(pp_black_borou
 pp_asian_borough <- merge(borough, pp_asian_borough[ , c(1,6:ncol(pp_asian_borough))], by='DISTRICT')
 pp_white_borough <- merge(borough, pp_white_borough[ , c(1,6:ncol(pp_white_borough))], by='DISTRICT')
 
-# Set tmap to interactive
-tmap_mode("view")
-
-
-# 4.2 ANALYSIS PRE-PROCESSING ####  
 ####  A. Police Perception: Merge variables of Interest (4F) #### 
 ### goodjob, fair, listens, mean by ALL & race (black, asian, white)
 ### What is fairSS for PP_borough race datasets?
@@ -108,7 +103,10 @@ rownames(reg_df@data) <- seq(length=nrow(reg_df@data))
 rm(list=ls()[! ls() %in% c('crime_df', 'ss_df', 'pp_df', 'pop_ward', 'station_ward', 'reg_df', 'borough', 'ward', 'proj')])
 
 
-# 4.3 LINEAR REGRESSION ####
+
+
+
+# 4.2 LINEAR REGRESSION ####
 
 # Dependent variable: The variable we are trying to predict.
 # Independent variables: The variables we are using to predict the dependent variable. They are called independent variables because they are required to independent of one another. Strong correlation between two or more independent variables is referred to as multicollinearity and can lead to unstable parameter estimates, which limits the explanatory power of the models.
@@ -160,7 +158,7 @@ heatmap(x = reg_cor, col = palette, symm = TRUE)
 # Add each variable one at a time to check confounding effects against crude association
 
 # Check all potential confounders 
-lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL
+lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL,
                # RUN: different S&S outcomes
                # +ss_occurance_white
                # +ss_occurance_black
@@ -211,7 +209,7 @@ summary(lm_model)
 # Calculate Mean Square Error (MSE) for comparisons
 mean(lm_model$residuals^2) #170.7308
 
-# 4.4 TESTING ERRORS FOR SPATIAL AUTOCORRELATION ####
+# 4.3 TESTING ERRORS FOR SPATIAL AUTOCORRELATION ####
 
 # Create spatial weight matrix (without missing data)
 reg_W <- nb2listw(poly2nb(reg_df, queen=T),  style="W", zero.policy=T) 
@@ -230,7 +228,8 @@ autoplot(lm_model)
 
 # Plot model residuals
 reg_df$lm_res <- residuals(lm_model)
-tm_shape(reg_df)+tm_polygons("lm_res", palette="-RdBu", style="quantile")
+
+tm_shape(reg_df)+tm_polygons("lm_res", palette="-RdBu", title="Linear Residuals (SS - All)", style="quantile")
 
 # RESULT: Assumptions are violated, but this could be due to spatial components
 
@@ -243,7 +242,7 @@ lm.LMtests(lm_model, reg_W, test="RLMerr", zero.policy = TRUE) # error Autocorre
 # Requires a Durbin spatial regression
 
 
-# 4.5 SPATIAL REGRESSION ####
+# 4.4 SPATIAL REGRESSION ####
 
 # Spatial Lag Model: assumes autocorrelation is present in the dependent variable
 # Spatial Error Model: assumes autocorrelation is a result of some unobserved variable(s) and is present in the residuals of the model.
@@ -278,17 +277,20 @@ summary(durbin_model, Nagelkerke=TRUE)
 mean(durbin_model$residuals^2) # 156.6166
 
 # Spatial Regression Comparison
-reg_df$durbin_res <- residuals(durbin_model)
-reg_df$durbin_fit <- exp(fitted.values(durbin_model))
+reg_df@data$durbin_res <- residuals(durbin_model)
+reg_df@data$durbin_fit <- predict(durbin_model)
 
-tm_shape(reg_df)+tm_polygons("durbin_res", palette="-RdBu", style="quantile")
-t1 <- tm_shape(reg_df)+tm_polygons("durbin_fit", style="quantile")
-t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_ALL", style="quantile")
+tm_shape(reg_df)+
+  tm_polygons("durbin_res", title = "Durbin Residuals (SS - All)", palette="-RdBu", style="quantile")
+
+t1 <- tm_shape(reg_df)+
+      tm_polygons("ss_occurance_ALL", title = "Actual SS Occurance (All)", palette="-RdBu", style="quantile")
+t2 <- tm_shape(reg_df)+
+      tm_polygons("durbin_fit", title = "Durbin SS Predicted (All)", palette="-RdBu", style="quantile")
 tmap_arrange(t1,t2)
 
 
-
-#### SS_White & Crime ####
+#### A. SS_White & Crime ####
 
 durbin_model_w <- lagsarlm(ss_occurance_white~crime_occurance_ALL
                          # CONFOUNDERS: Police perception
@@ -311,16 +313,21 @@ summary(durbin_model_w, Nagelkerke=TRUE)
 # Calculate Mean Square Error (MSE) for comparisons
 mean(durbin_model_w$residuals^2) # 32.1708
 
-# # Spatial Regression Comparison
-# reg_df$durbinw_res <- residuals(durbin_model_w)
-# reg_df$durbinw_fit <- exp(fitted.values(durbin_model_w))
-# 
-# tm_shape(reg_df)+tm_polygons("durbinw_res", palette="-RdBu", style="quantile")
-# t1 <- tm_shape(reg_df)+tm_polygons("durbinw_fit", style="quantile")
-# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_white", style="quantile")
-# tmap_arrange(t1,t2)
+# Spatial Regression Comparison
+reg_df@data$durbinw_res <- residuals(durbin_model_w)
+reg_df@data$durbinw_fit <- predict(durbin_model_w)
 
-#### SS_Black & Crime ####
+tm_shape(reg_df)+
+  tm_polygons("durbinw_res", title = "Durbin Residuals (SS - White)", palette="-RdBu", style="quantile")
+
+t1 <- tm_shape(reg_df)+
+      tm_polygons("ss_occurance_white", title = "Actual SS Occurance (White)", palette="-RdBu", style="quantile")
+t2 <- tm_shape(reg_df)+
+      tm_polygons("durbinw_fit", title = "Durbin SS Predicted (White)", palette="-RdBu", style="quantile")
+tmap_arrange(t1,t2)
+
+
+#### B. SS_Black & Crime ####
 
 durbin_model_b <- lagsarlm(ss_occurance_black~crime_occurance_ALL
                            # CONFOUNDERS: Police perception
@@ -344,17 +351,21 @@ summary(durbin_model_b, Nagelkerke=TRUE)
 mean(durbin_model_b$residuals^2) # 39.71099
 
 
-# # Spatial Regression Comparison
-# reg_df$durbinb_res <- residuals(durbin_model_b)
-# reg_df$durbinb_fit <- exp(fitted.values(durbin_model_b))
-# 
-# tm_shape(reg_df)+tm_polygons("durbinb_res", palette="-RdBu", style="quantile")
-# t1 <- tm_shape(reg_df)+tm_polygons("durbinb_fit", style="quantile")
-# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_black", style="quantile")
-# tmap_arrange(t1,t2)
+# Spatial Regression Comparison
+reg_df@data$durbinb_res <- residuals(durbin_model_b)
+reg_df@data$durbinb_fit <- predict(durbin_model_b)
+
+tm_shape(reg_df)+
+  tm_polygons("durbinb_res", title = "Durbin Residuals (SS - Black)", palette="-RdBu", style="quantile")
+
+t1 <- tm_shape(reg_df)+
+      tm_polygons("ss_occurance_black", title = "Actual SS Occurance (Black)", palette="-RdBu", style="quantile")
+t2 <- tm_shape(reg_df)+
+      tm_polygons("durbinb_fit", title = "Durbin SS Predicted (Black)", palette="-RdBu", style="quantile")
+tmap_arrange(t1,t2)
 
 
-#### SS_Asian & Crime ####
+#### C. SS_Asian & Crime ####
 
 durbin_model_a <- lagsarlm(ss_occurance_asian~crime_occurance_ALL
                            # CONFOUNDERS: Police perception
@@ -379,11 +390,21 @@ summary(durbin_model_a, Nagelkerke=TRUE)
 mean(durbin_model_a$residuals^2) # 6.664985
 
 
+
 # Spatial Regression Comparison
-reg_df$durbina_res <- residuals(durbin_model_a)
-reg_df$durbina_fit <- exp(fitted.values(durbin_model_a))
- 
-# tm_shape(reg_df)+tm_polygons("durbina_res", palette="-RdBu", style="quantile")
-# t1 <- tm_shape(reg_df)+tm_polygons("durbina_fit", style="quantile")
-# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_asian", style="quantile")
-# tmap_arrange(t1,t2)
+reg_df@data$durbina_res <- residuals(durbin_model_a)
+reg_df@data$durbina_fit <- predict(durbin_model_a)
+
+tm_shape(reg_df)+
+  tm_polygons("durbina_res", title = "Durbin Residuals (SS - Asian)", palette="-RdBu", style="quantile")+
+  tm_legend(outside=TRUE)
+
+t1 <- tm_shape(reg_df)+
+      tm_polygons("ss_occurance_asian", title = "Actual SS Occurance (Asian)", palette="-RdBu", style="quantile")+
+      tm_legend(outside=TRUE)
+
+t2 <- tm_shape(reg_df)+
+      tm_polygons("durbina_fit", title = "Durbin SS Predicted (Asian)", palette="-RdBu", style="quantile")+
+      tm_legend(outside=TRUE)
+
+tmap_arrange(t1,t2)
