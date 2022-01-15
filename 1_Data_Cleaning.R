@@ -5,7 +5,8 @@
 # Date: 22 JANUARY 2022
 
 # To run this code, set the work directory to folder containing the provided data.
-setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
+#setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
+setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
 
 # Load Packages
 library(tmap)
@@ -27,6 +28,10 @@ ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncodin
 crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
 pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 pp_wab <- read.csv(file='Data/2015-16 _to_2020-21_inclusive_neighbourhood_indicators_final_221221.csv') # wab = white, asian, black
+ethnicity_by_borough <- read.csv(file='Data/ethnic-groups-by-borough.csv') # https://data.london.gov.uk/dataset/ethnic-groups-borough
+ldn_oa <- readOGR(dsn="Data/London_Shapefiles/OA_2011_London_gen_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+ldn_b <- readOGR(dsn = "Data/London_Shapefiles/London_Borough_Excluding_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+ldneth <- read.csv(file='Data/bulk.csv', stringsAsFactors = F, check.names = F) %>% select(geography, "Ethnic Group: White; measures: Value", "Ethnic Group: Asian/Asian British; measures: Value", "Ethnic Group: Black/African/Caribbean/Black British; measures: Value")
 
 # Open shape files
 proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0" #set projections
@@ -48,6 +53,7 @@ sapply(crime, function(x) sum(is.na(x)))
 sapply(ss, function(x) sum(is.na(x)))
 sapply(pp, function(x) sum(is.na(x)))
 sapply(pp_wab, function(x) sum(is.na(x)))
+sapply(ethnicity_by_borough, function(x) sum(is.na(x)))
 sapply(borough@data, function(x) sum(is.na(x)))
 sapply(ward@data, function(x) sum(is.na(x)))
 sapply(pop, function(x) sum(is.na(x)))
@@ -57,8 +63,6 @@ sapply(stations, function(x) sum(is.na(x)))
 crime <- subset (crime, select = -c(Crime.ID, Context, Reported.by, Falls.within, Location, LSOA.code, LSOA.name, Last.outcome.category))
 ss <- subset(ss, select = -c(Part.of.a.policing.operation, Type, Legislation, Policing.operation, Removal.of.more.than.just.outer.clothing, Outcome.linked.to.object.of.search))
 borough@data <- subset(borough@data, select = -c(SUB_2006, SUB_2009))
-pp <- subset(pp, select = -c(2:3,5:6,9:22)) # selects only good-job, fair and listens indicators
-pp <- pp[ , c(1, 3, 4, 2)] # reorder to neighbour, fair, listens, good-job
 pop <- subset(pop, select = c(New_Code, Borough, Names, Population_and_Age_Mean_age_2013, 
                               Area_and_Density_Population_density_.persons_per_sq_km._2013, 
                               Diversity_Ethnic_Group_5_groups__2011_Census_White, 
@@ -76,6 +80,7 @@ crime <- na.omit(crime)
 ss <- na.omit(ss)
 pp <- na.omit(pp)
 pp_wab <- na.omit(pp_wab)
+ethnicity_by_borough <- na.omit(ethnicity_by_borough)
 
 ### Add unique id's
 ss$ID <- seq_along(ss[,1])
@@ -86,99 +91,93 @@ crime$ID <- seq_along(crime[,1])
 
 # 1.2a Police Perceptions #### 
 
-### shorten indicator names
-names(pp) <- c('neighbourhood','ALL_goodjob', 'ALL_fair', 'ALL_listens')
-names(pp_wab) <- c('neighbourhood', 'WHITE_fair', 'WHITE_listens', 'WHITE_goodjob', 'WHITE_fairSS', 'ASIAN_fair', 'ASIAN_listens', 'ASIAN_goodjob', 'ASIAN_fairSS', 'BLACK_fair', 'BLACK_listens', 'BLACK_goodjob', 'BLACK_fairSS')
+### drop missing/irrelevant fields
+pp <- pp[-1,]                 # subheading row
+pp_wab <- pp_wab[-c(1, 2), ]  # subheading row
 
-### remove subheading row(s)
-pp <- pp[-1,]# remove row2 containing "% Strongly Agree or Tend to agree"
-pp_wab <- pp_wab[-c(1, 2), ]
+### remove characters from 'grouping'
+pp$Group<-gsub("Group","",as.character(pp$Group))
 
-### Change data types where applicable
+### select subsets
+pp <- subset(pp, select = c(1,3,4,7,8)) # selects only good-job, fair and listens indicators
+pp <- pp[ , c(1,2,4,5,3)]               # reorder cols to neighbour, fair, listens, good-job
+
+### summarise indicator names (e.g. listens <- "The police in your area listen to the concerns of local people")
+names(pp) <- c('neighbourhood', 'grouping', 
+               'fair_all', 'listens_all', 'goodjob_all')
+names(pp_wab) <- c('neighbourhood', 
+                   'fair_w', 'listens_w', 'goodjob_w', 'fairSS_w', 
+                   'fair_a', 'listens_a', 'goodjob_a', 'fairSS_a', 
+                   'fair_b', 'listens_b', 'goodjob_b', 'fairSS_b')
+
+### amalgamate pp and pp_wab datasets
+pp <- merge(pp, pp_wab, by='neighbourhood')
+pp <- pp[ , c('neighbourhood','grouping',
+              'goodjob_w','goodjob_a','goodjob_b', 'goodjob_all',
+              'listens_w', 'listens_a', 'listens_b', 'listens_all',
+              'fair_w', 'fair_a', 'fair_b', 'fair_all',
+              'fairSS_w', 'fairSS_a', 'fairSS_b')] 
+
+### change fields to numeric where necessary
+view(pp)
 names <- colnames(pp)[-1]
-pp[ ,names] <- apply(pp[ , names], 2, function(x) as.numeric(as.character(x)))# Change characters to numeric
-names <- colnames(pp_wab)[-1]
-pp_wab[ ,names] <- apply(pp_wab[ , names], 2, function(x) as.numeric(as.character(x)))
+pp[ ,names] <- apply(pp[ , names], 2, function(x) as.numeric(as.character(x)))  # characters to numeric
 
 ### foo: select borough name within neighbourhood name
-replace_neighbourhood_names <- function(pp) {
-  names <- pp$neighbourhood
-  names <- sub(" -.*", "", names) # remove text after borough name
-  pp$neighbourhood <- c(names)
-  names(pp)[1] <- "DISTRICT"      # rename neighbourhoods as DISTRICTS
-  return(pp)
-}
+names <- pp$neighbourhood                         # get neighbourhood names
+names <- sub(" -.*", "", names)                   # get district name from neighbourhood name
+pp <- add_column(pp, DISTRICT = '', .before = 1)  # create placeholder
+pp$DISTRICT <- c(names)                           # populate placeholder
 
-pp <- replace_neighbourhood_names(pp)         # call1
-pp_wab <- replace_neighbourhood_names(pp_wab) # call2
+### identify boroughs where 25% of neighbourhoods are NA
+na_per_borough <- setNames(aggregate(goodjob_w ~ DISTRICT, data=pp, function(x) {sum(is.na(x))}, na.action = NULL), c("DISTRICT", "na_count"))
+nbr_per_borough <- setNames(aggregate(pp$DISTRICT, by=list(pp$DISTRICT), FUN=length), c("DISTRICT", "nbr_count"))
+na_nbr <- merge(nbr_per_borough, na_per_borough, by='DISTRICT')
+na_nbr$perc_na <- with(na_nbr, na_count / nbr_count * 100)
+na_nbr <- na_nbr[!(na_nbr$perc_na<25.1),]
+omit_boroughs <- list(na_nbr$DISTRICT)  # res: Bexley, Kingston upon Thames, Merton, Richmond upon Thames
 
-### omit districts where a high proportion of its neighbourhoods are NA (TBC)
-# count number of districts - as.data.frame(table(pp_wab$DISTRICT)) 
-# count number of NAs per district
-# merge 'district count' with 'NA count' by district name.
-# if more than 25% are NA, FALSE.
-# export list of districts to remove from master datasets
+### delete rows that contain NA
+pp <- na.omit(pp) 
 
-### in the meantime, just delete all rows that are NA. BUT, risk of few neighbourhoods representing a whole borough.
-pp_wab <- pp_wab[!is.na(pp_wab[2]), ]                 
-list <- setdiff(pp[1], pp_wab[1])           # identify neighbourhoods removed from pp_wab
-pp <- pp[!pp$DISTRICT %in% list$DISTRICT, ] # remove rows from pp that were deleted in pp_wab
+### get mean of all indicator scores per borough (for exploring variation in eda)
+pp$mean_w <- round(rowMeans(pp[, c('goodjob_w', 'listens_w', 'fair_w', 'fairSS_w')]), 1)
+pp$mean_a <- round(rowMeans(pp[, c('goodjob_a', 'listens_a', 'fair_a', 'fairSS_a')]), 1)
+pp$mean_b <- round(rowMeans(pp[, c('goodjob_b', 'listens_b', 'fair_b', 'fairSS_b')]), 1)
+pp$mean_all <- round(rowMeans(pp[, c('goodjob_all', 'listens_all', 'fair_all')]), 1)
 
-### prepare pre-aggregated datasets for use in exploring variation (eda)
-pp$ALL_mean <- round(rowMeans(pp[-1]),1)  # add mean to row for use in eda exploring variation
-pp_white <- pp_wab[, c(1:5)]
-pp_white$WHITE_mean <- round(rowMeans(pp_white[-1]),1)
-pp_asian <- pp_wab[, c(1, 6:9)]
-pp_asian$ASIAN_mean <- round(rowMeans(pp_asian[-1]),1)
-pp_black <- pp_wab[, c(1,10:13)]
-pp_black$BLACK_mean <- round(rowMeans(pp_black[-1]),1)
+### aggregate and merge pp to borough shapefile
+names <- colnames(pp)[-c(1,2,3)]
+pp_ag_borough <- pp %>%
+  group_by(DISTRICT) %>% 
+  summarise_at(vars(names), mean)
+pp_ag_borough <- rapply(pp_ag_borough, f = round, classes = "numeric", how = "replace", digits = 1) # round all vals to 1 d.p.
+pp_ag_borough <- pp_ag_borough[!pp_ag_borough$DISTRICT %in% omit_boroughs[[1]], ]                   # omit boroughs where over 25% it's neighbourhoods were NA
 
-### foo: aggregate all data to a single row for each borough
-aggregate_to_borough <- function(pp, borough, colname) {
-  names <- colnames(pp)[-1]
-  pp_ag <- pp %>%
-    group_by(DISTRICT) %>% 
-    summarise_at(vars(names), mean)
-  pp_ag$mean_pp <- round(rowMeans(pp_ag[-1]),1)                    # create 'mean_pp' col to pp_ag table, populated with mean of row.
-  pp_ag <- rapply(pp_ag, f = round, classes = "numeric", how = "replace", digits = 1) # round all vals to 1 d.p.
-  pp_borough <- merge(borough, pp_ag, by='DISTRICT')      # merge pp_ag table to the borough shapefile
-  pp_mean <- subset(pp_ag, select = c(DISTRICT, mean_pp)) # create subset table containing only districts and mean_pp
-  # change colname based on input ethnicity
-  pp_ag <- data.frame(pp_ag)
-  pp_mean <- data.frame(pp_mean)
-  pp_borough <- data.frame(pp_borough)
-  colnames(pp_ag)[colnames(pp_ag) == 'mean_pp'] <- colname
-  colnames(pp_mean)[colnames(pp_mean) == 'mean_pp'] <- colname
-  colnames(pp_borough)[colnames(pp_borough) == 'mean_pp'] <- colname
-  out <- list(pp_ag, pp_mean, pp_borough)                 # aggregate results into list, as only one returnable var
-  return(out)
-}
+### calculate and append ethnicity population rank per borough
+names(ethnicity_by_borough)[names(ethnicity_by_borough) == "ï..DISTRICT"] <- "DISTRICT"         # remove special characters
+ethnicity_by_borough <- ethnicity_by_borough[-c(6)]                                             # remove 'other' category
+ethnicity_by_borough$White <- as.numeric(gsub(",","",ethnicity_by_borough$White))               # remove commas and convert to numeric field
+ethnicity_by_borough$Asian <- as.numeric(gsub(",","",ethnicity_by_borough$Asian))
+ethnicity_by_borough$Black <- as.numeric(gsub(",","",ethnicity_by_borough$Black))
+ethnicity_by_borough$Total <- as.numeric(gsub(",","",ethnicity_by_borough$Total))
+ethnicity_by_borough$perc_w <- with(ethnicity_by_borough, White / Total * 100)                  # calculate percentage of overall population
+ethnicity_by_borough$perc_a <- with(ethnicity_by_borough, Asian / Total * 100)
+ethnicity_by_borough$perc_b <- with(ethnicity_by_borough, Black / Total * 100)
+ethnicity_by_borough$rank_w[order(-ethnicity_by_borough$White)] <- 1:nrow(ethnicity_by_borough) # rank percentage
+ethnicity_by_borough$rank_a[order(-ethnicity_by_borough$Asian)] <- 1:nrow(ethnicity_by_borough)
+ethnicity_by_borough$rank_b[order(-ethnicity_by_borough$Black)] <- 1:nrow(ethnicity_by_borough)
+ethnicity_by_borough <- ethnicity_by_borough[c('DISTRICT', 'perc_w','perc_a', 'perc_b', 'rank_w','rank_a', 'rank_b')]        # retain only rank
 
-### call1: get mean of pp indicators for 'all' respondents at borough level
-pp_lst <- aggregate_to_borough(pp, borough,'PP_ALL_MEAN')
-pp_ag <- pp_lst[1]        # district, 3 indicator scores, mean score
-pp_mean <- pp_lst[2]      # district and mean score
-pp_borough <- pp_lst[3]   # district, 3 indicator scores, mean score WITH borough boundary
+# merge datasets
+pp_ag_borough <- merge(pp_ag_borough, ethnicity_by_borough, by='DISTRICT') # merge ethnicity rankings to borough-level dataset
+pp_ag_borough <- pp_ag_borough[sample(nrow(pp_ag_borough)),]               # shuffle
+pp_ag_borough_shp <- merge(borough, pp_ag_borough, by='DISTRICT')          # merge borough-level dataset to borough shapefile                                   
+pp_ag_borough <- pp_ag_borough_shp[sample(nrow(pp_ag_borough_shp)),]
 
-### call2: get mean of pp indicators for 'white' respondents at borough level
-pp_white_lst <- aggregate_to_borough(pp_white, borough, 'PP_WHITE_MEAN')
-pp_white_ag <- pp_white_lst[1]
-pp_white_mean <- pp_white_lst[2]
-pp_white_borough <- pp_white_lst[3]
-
-### call3: get mean of pp indicators for 'asian' respondents at borough level
-pp_asian_lst <- aggregate_to_borough(pp_asian, borough,'PP_ASIAN_MEAN')
-pp_asian_ag <- pp_asian_lst[1]
-pp_asian_mean <- pp_asian_lst[2]
-pp_asian_borough <- pp_asian_lst[3]
-
-### call4: get mean of pp indicators for 'black' respondents at borough level
-pp_black_lst <- aggregate_to_borough(pp_black, borough, 'PP_BLACK_MEAN')
-pp_black_ag <- pp_black_lst[1]
-pp_black_mean <- pp_black_lst[2]
-pp_black_borough <- pp_black_lst[3]
-
-
+# pp datasets to use further along the project pipeline
+view(pp_ag_borough)     # for df version
+view(pp_ag_borough_shp) # for sdf version
 
 
 # 1.2b Stop and Search #### 
@@ -382,11 +381,11 @@ names(crime_ward)[8] <- "crime_occurance_ALL"
 # Add pp_mean to ss and crime datasets
 names(crime)[11] <- "DISTRICT" 
 crime <- merge(crime, pp_mean, by='DISTRICT') 
-      
+
 # There is no police perception data for city of London, so drop these points :(
 sapply(crime@data, function(x) sum(is.na(x)))
 crime@data <- na.omit(crime@data)
-      
+
 #merge to wards shp
 crime_ward_2 <-merge(x=ward, y=crime_ag, all.x = FALSE)
 nrow(crime_ward_2) # 650
@@ -394,20 +393,20 @@ length(which(table(crime_ward_2$NAME)>1)) # 19 rows were duplicated
 # 650 row minus 19 duplicates= 631
 (which(table(crime_ward_2$NAME)>1))
 crime_ward_2@data
-      
+
 crime_ward_2_data <- crime_ward_2@data
 count(is.na(crime_ward_2@data$crime_occurance))
-      
+
 #----------------------------------------------------------------------------
-      
+
 table(crime@data$Crime.type)
- # 2 major crimes :
- # Anti-social behaviour : 21825, Violence and sexual offences : 17621, Other theft: 8891, Vehicle crime :7490 
-      
+# 2 major crimes :
+# Anti-social behaviour : 21825, Violence and sexual offences : 17621, Other theft: 8891, Vehicle crime :7490 
+
 table2 <- table(crime@data$Crime.type)
 prop.table(table2) # gives proportions per crimes
 round(prop.table(table2) ,3)  # proportions rounded to 3 dp 
-      
+
 # make new dataframe getting rid of crime empties
 updated_crime <- data.frame(crime@data[crime@data$Crime.type != "",])
 typeof(updated_crime)
@@ -419,13 +418,13 @@ names(crime_asb_ag) <- c('NAME', 'crime_occurance_asb')
 
 # Create polygon data from point count
 crime_ward_asb <- merge(ward, crime_asb_ag, by='NAME') 
-       
+
 # Violence and sexual offences
-      
+
 crime_vso <- subset(crime@data, crime@data$Crime.type == 'Violence and sexual offences')
 crime_ag_vso <- aggregate(crime_vso$NAME, list(crime_vso$NAME), length)
 names(crime_ag_vso) <- c('NAME', 'crime_vso_occurance')
-      
+
 #  Create polygon data from point count
 crime_ward_vso <- merge(x=ward, y = crime_ag_vso, by='NAME')
 
@@ -466,7 +465,7 @@ pop_ward <- merge(ward, pop, by='GSS_CODE')
 pop_ward@data <- pop_ward@data[order(pop_ward@data$BOROUGH), ]
 rownames(pop_ward@data) <- seq(length=nrow(pop_ward@data))
 sapply(pop_ward@data, function(x) sum(is.na(x)))
-       
+
 
 
 # Merge missing data on NAME 
@@ -498,6 +497,3 @@ pop_ward <- pop_ward[!(rownames(pop_ward@data) %in% replace),]
 pop_ward <- rbind(pop_ward, missing)
 
 # tm_shape(pop_ward)+tm_polygons("Population_Density_km2_2013", palette="-RdBu", style="quantile")
-
-      
-
