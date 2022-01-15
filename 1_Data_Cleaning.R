@@ -84,16 +84,6 @@ crime$ID <- seq_along(crime[,1])
 
 
 
-################### TOMMY: Add your PRE-PROCESSING bits below ###################
-# (CLAUDIA) I have added what looks like pre-processing here so I can start my script, but 
-# double check that your section contain all of pre-processing required for 
-# visuals/non-spatialEDA/ESDA. Add more drop down sections for specific 
-# variables (like in Danni's section) if need be.
-
-### (CLAUDIA) COMMENT: Good job on teasing out the pp_borough data by race! I will be using
-# pp_borough, pp_black_borough, pp_asian_borough, pp_white_borough in the regression.
-
-
 # 1.2a Police Perceptions #### 
 
 ### shorten indicator names
@@ -192,10 +182,6 @@ pp_black_borough <- pp_black_lst[3]
 
 
 ################### DANNI: Add your PRE-PROCESSING bits below ###################
-
-### (CLAUDIA) COMMENT: You created a MEAN_PP variable - Is it needed for your final analyses? 
-# (DANNI) No - i'm not really sure when or why i created it but it would be better to use Tommy's more detailed data
-
 ### (CLAUDIA) COMMENT: Let me know which dataset is the final cleaned one with 
 # the variables you want in the regression.
 # (i.e. ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
@@ -440,10 +426,6 @@ table(ss@data$Outcome)
 
 ################### PRATIBHA: Add your PRE-PROCESSING bits below ###################
 
-# (CLAUDIA) I have added some pre-processing here so I can start my script.
-# Add your pre-processing required for visuals/non-spatialEDA/ESDA here when you 
-# can and make sure the visuals/non-spatialEDA is in script 2.
-
 ### (CLAUDIA) COMMENT: We need to combine all theft related variables into one variable
 # to simplify the regression analysis. Could you combine the following categories 
 # into a variables called'All_Theft'?:
@@ -456,7 +438,7 @@ table(ss@data$Outcome)
 # (i.e. crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
 # Reply: Yes, I was thinking of doing something on same line. Also, I didn't get why station and popualtion is added? For plotting regression?  
-
+# (CLAUDIA) - Great, I see you have done anti-social behaviour. if you cou
 
 # 1.2c Crime #### 
 
@@ -488,8 +470,10 @@ crime_ward <- merge(ward, crime_ag, by='NAME')
  #ward: 657 rows,crime_ag: 631
 
 
+# !!!! STOP RUNNING FOR ME HERE - Changed the file name (CLAUDIA) !!!!
 # Add pp_mean to ss and crime datasets
-crime <- merge(crime, pp_mean, by='DISTRICT')
+names(crime)[11] <- "DISTRICT" 
+crime <- merge(crime, pp_mean, by='DISTRICT') 
       
 # There is no police perception data for city of London, so drop these points :(
 sapply(crime@data, function(x) sum(is.na(x)))
