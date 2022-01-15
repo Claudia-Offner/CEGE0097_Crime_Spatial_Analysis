@@ -224,7 +224,8 @@ length(which(table(ss_ward2$NAME)>1)) # 19 rows are duplicated
 
 (which(table(ss_ward2$NAME)>1))
 
-ss_ward2@data
+# Rename column
+names(ss_ward2@data)[8] <- "ss_occurance_ALL" 
 
 # Abbey // barnhill -> examples of districts whose names are repeated
 
@@ -253,8 +254,6 @@ round(prop.table(table4) , 3)
 # Change empty ethnicity fields to "Not Stated (NS)"
 levels(ss@data$Self.defined.ethnicity)[levels(ss@data$Self.defined.ethnicity)==""] <-"Not Stated (NS)" 
 
-
-
 # subset ss@data -> then aggregate to ss_ag -> then merge to ward 
 
 
@@ -266,10 +265,7 @@ ss_ag_white <- aggregate(ss_white$NAME, list(ss_white$NAME), length)
 names(ss_ag_white) <- c('NAME', 'ss_occurance')
 
 ss_ward2_white <- merge(x = ward, y = ss_ag_white, all.x = FALSE)
-
-# ttm()
-# tm_shape(ss_ward2_white)+tm_polygons("ss_occurance") 
-
+names(ss_ward2_white)[8] <- "ss_occurance_white" 
 
 
 # CREATING SS_WARD_BLACK
@@ -280,7 +276,8 @@ ss_ag_black <- aggregate(ss_black$NAME, list(ss_black$NAME), length)
 names(ss_ag_black) <- c('NAME', 'ss_occurance')
 
 ss_ward2_black <- merge(x = ward, y = ss_ag_black, all.x = FALSE)
-# tm_shape(ss_ward2_black)+tm_polygons("ss_occurance") 
+
+names(ss_ward2_black)[8] <- "ss_occurance_black" 
 
 
 # CREATING SS_WARD_ASIAN
@@ -291,7 +288,8 @@ ss_ag_asian <- aggregate(ss_asian$NAME, list(ss_asian$NAME), length)
 names(ss_ag_asian) <- c('NAME', 'ss_occurance')
 
 ss_ward2_asian <- merge(x = ward, y = ss_ag_asian, all.x = FALSE)
-# tm_shape(ss_ward2_asian)+tm_polygons("ss_occurance") 
+
+names(ss_ward2_asian)[8] <- "ss_occurance_asian" 
 
 
 
@@ -303,7 +301,8 @@ ss_ag_mixed <- aggregate(ss_mixed$NAME, list(ss_mixed$NAME), length)
 names(ss_ag_mixed) <- c('NAME', 'ss_occurance')
 
 ss_ward2_mixed <- merge(x = ward, y = ss_ag_mixed, all.x = FALSE)
-# tm_shape(ss_ward2_mixed)+tm_polygons("ss_occurance") 
+
+names(ss_ward2_mixed)[8] <- "ss_occurance_mixed" 
 
 
 
@@ -315,7 +314,8 @@ ss_ag_chinese_other <- aggregate(ss_chinese_other$NAME, list(ss_chinese_other$NA
 names(ss_ag_chinese_other) <- c('NAME', 'ss_occurance')
 
 ss_ward2_chinese_other <- merge(x = ward, y = ss_ag_chinese_other, all.x = FALSE)
-# tm_shape(ss_ward2_chinese_other)+tm_polygons("ss_occurance") 
+
+names(ss_ward2_chinese_other)[8] <- "ss_occurance_chinese_other" 
 
 
 
@@ -376,10 +376,9 @@ names(crime_ag) <- c('NAME', 'crime_occurance')
 
 # Create polygon data from point count
 crime_ward <- merge(ward, crime_ag, by='NAME') 
- #ward: 657 rows,crime_ag: 631
+names(crime_ward)[8] <- "crime_occurance_ALL" 
 
 
-# !!!! STOP RUNNING FOR ME HERE - Changed the file name (CLAUDIA) !!!!
 # Add pp_mean to ss and crime datasets
 names(crime)[11] <- "DISTRICT" 
 crime <- merge(crime, pp_mean, by='DISTRICT') 
