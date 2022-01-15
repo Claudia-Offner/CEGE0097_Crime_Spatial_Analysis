@@ -37,7 +37,7 @@ sp.na.omit <- function(x, margin=1) {
 suppressWarnings(source("1_Data_cleaning.R"))
 
 # Remove all environment objects except those of interest to this analysis
-rm(list=ls()[! ls() %in% c('crime_ward', 'crime_ward_asb',
+rm(list=ls()[! ls() %in% c('crime_ward', 'crime_ward_asb', 'pp_ag_borough_shp',
                            'ss_ward2','ss_ward2_asian', 'ss_ward2_chinese_other', 'ss_ward2_white', 'ss_ward2_black', 'ss_ward2_mixed', 'ss_ward2_female', 'ss_ward2_male',
                            'pp_borough', 'pp_black_borough', 'pp_asian_borough', 'pp_white_borough', 
                            'borough', 'ward', 'proj',
@@ -138,7 +138,7 @@ summary(ppss_crude)
 # Check correlations of all variables of interest
 select <- c("ss_occurance_ALL","ss_occurance_white","ss_occurance_black","ss_occurance_asian",
             'crime_occurance_ALL', 'crime_occurance_asb',
-            'ALL_mean', 'BLACK_mean', 'ASIAN_mean', 'WHITE_mean',
+            'ALL_mean', 'BLACK_mean', 'ASIAN_mean', 'WHITE_mean', 'WHITE_fairSS', 'BLACK_fairSS', 'ASIAN_fairSS',
             'Mean_Popuation_Age_2013', 'Population_Density_km2_2013', 'Mortality_Ratio_2013', 'Life_Expectancy_2013', 'Median_House_Prices_2013',
             'Mean_Household_Income_2013', 'Total_crime_rate_2013','Ethnic_Group_White_2013', 'Ethnic_Group_Asian_2013', 'Ethnic_Group_Black_2013',
             'police_station_occurance')
@@ -150,8 +150,9 @@ heatmap(x = reg_cor, col = palette, symm = TRUE)
 
 # Effect Modifiers: SS ethnicity and crime type 
 # Potential confounders:  
-# WHITE_mean, Mean_Popuation_Age_2013, Population_Density_km2_2013, Mortality_Ratio_2013
-# Life_Expectancy_2013, Median_House_Prices_2013, Total_crime_rate_2013, 
+# WHITE_mean, WHITE_fairSS, BLACK_fairSS, ASIAN_fairSS, Mean_Popuation_Age_2013, 
+# Population_Density_km2_2013, Mortality_Ratio_2013, Life_Expectancy_2013,
+# Median_House_Prices_2013, Total_crime_rate_2013, 
 # Ethnic_Group_Black_2013, police_station_occurance
 
 #### Model Building ####
@@ -159,7 +160,7 @@ heatmap(x = reg_cor, col = palette, symm = TRUE)
 # Add each variable one at a time to check confounding effects against crude association
 
 # Check all potential confounders 
-lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL,
+lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL
                # RUN: different S&S outcomes
                # +ss_occurance_white
                # +ss_occurance_black
@@ -167,6 +168,9 @@ lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL,
                # +crime_occurance_asb
                # CONFOUNDERS
                # +WHITE_mean,  # CONFOUNDER
+               # +WHITE_fairSS,  # CONFOUNDER
+               # +BLACK_fairSS,  # CONFOUNDER
+               # +ASIAN_fairSS,  # CONFOUNDER
                # +Mean_Popuation_Age_2013,  # CONFOUNDER
                # +Population_Density_km2_2013,  # CONFOUNDER
                # +Mortality_Ratio_2013,  # no change from crude - REMOVE
@@ -189,9 +193,12 @@ lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL
                # ss_occurance_white
                # ss_occurance_black
                # ss_occurance_asian
-               # +crime_occurance_asb
                # CONFOUNDERS: Police perception
-               +WHITE_mean  # pp
+               +WHITE_mean  
+               +WHITE_fairSS
+               +BLACK_fairSS
+               +ASIAN_fairSS
+               # CONFOUNDERS: Population
                +Mean_Popuation_Age_2013
                +Population_Density_km2_2013
                +Median_House_Prices_2013
@@ -250,9 +257,12 @@ durbin_model <- lagsarlm(ss_occurance_ALL~crime_occurance_ALL
                          # ss_occurance_white
                          # ss_occurance_black
                          # ss_occurance_asian
-                         # +crime_occurance_asb
                          # CONFOUNDERS: Police perception
-                         +WHITE_mean  # pp
+                         +WHITE_mean  
+                         +WHITE_fairSS
+                         +BLACK_fairSS
+                         +ASIAN_fairSS
+                         # CONFOUNDERS: Population
                          +Mean_Popuation_Age_2013
                          +Population_Density_km2_2013
                          +Median_House_Prices_2013
@@ -281,13 +291,12 @@ tmap_arrange(t1,t2)
 #### SS_White & Crime ####
 
 durbin_model_w <- lagsarlm(ss_occurance_white~crime_occurance_ALL
-                         # RUN: different S&S outcomes
-                         # ss_occurance_ALL
-                         # ss_occurance_white
-                         # ss_occurance_black
-                         # ss_occurance_asian
                          # CONFOUNDERS: Police perception
-                         +WHITE_mean  # pp
+                         +WHITE_mean  
+                         +WHITE_fairSS
+                         +BLACK_fairSS
+                         +ASIAN_fairSS
+                         # CONFOUNDERS: Population
                          +Mean_Popuation_Age_2013
                          +Population_Density_km2_2013
                          +Median_House_Prices_2013
@@ -314,13 +323,12 @@ mean(durbin_model_w$residuals^2) # 32.1708
 #### SS_Black & Crime ####
 
 durbin_model_b <- lagsarlm(ss_occurance_black~crime_occurance_ALL
-                           # RUN: different S&S outcomes
-                           # ss_occurance_ALL
-                           # ss_occurance_white
-                           # ss_occurance_black
-                           # ss_occurance_asian
                            # CONFOUNDERS: Police perception
-                           +WHITE_mean  # pp
+                           +WHITE_mean  
+                           +WHITE_fairSS
+                           +BLACK_fairSS
+                           +ASIAN_fairSS
+                           # CONFOUNDERS: Population
                            +Mean_Popuation_Age_2013
                            +Population_Density_km2_2013
                            +Median_House_Prices_2013
@@ -349,11 +357,12 @@ mean(durbin_model_b$residuals^2) # 39.71099
 #### SS_Asian & Crime ####
 
 durbin_model_a <- lagsarlm(ss_occurance_asian~crime_occurance_ALL
-                           # RUN: different S&S outcomes
-                           # ss_occurance_ALL
-                           # ss_occurance_white
-                           # ss_occurance_black
                            # CONFOUNDERS: Police perception
+                           +WHITE_mean  
+                           +WHITE_fairSS
+                           +BLACK_fairSS
+                           +ASIAN_fairSS
+                           # CONFOUNDERS: Population
                            +WHITE_mean  # pp
                            +Mean_Popuation_Age_2013
                            +Population_Density_km2_2013
