@@ -18,12 +18,8 @@ setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 # 4.0 Packages & Functions####
 
-
 # install.packages("spatialreg")
 library(spatialreg)
-
-# Set tmap to interactive
-tmap_mode("view")
 
 # FUNCTION TO REMOVE NA's IN sp DataFrame OBJECT
 #   x           sp spatial DataFrame object
@@ -47,14 +43,11 @@ sp.na.omit <- function(x, margin=1) {
 suppressWarnings(source("1_Data_cleaning.R"))
 
 # Remove all environment objects except those of interest to this analysis
-rm(list=ls()[! ls() %in% c('crime_ward', 
-                           'ss_ward2',  
+rm(list=ls()[! ls() %in% c('crime_ward', 'crime_ward_asb',
+                           'ss_ward2','ss_ward2_asian', 'ss_ward2_chinese_other', 'ss_ward2_white', 'ss_ward2_black', 'ss_ward2_mixed', 'ss_ward2_female', 'ss_ward2_male',
                            'pp_borough', 'pp_black_borough', 'pp_asian_borough', 'pp_white_borough', 
                            'borough', 'ward', 'proj',
                            'station_ward', 'pop_ward')])
-
-# (NEED i.e.: ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
-# (NEED i.e.:  crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
 
 # Make PP lists Spatial objects
 pp_borough <- pp_borough[[1]]
@@ -66,11 +59,12 @@ pp_black_borough <- merge(borough, pp_black_borough[ , c(1,6:ncol(pp_black_borou
 pp_asian_borough <- merge(borough, pp_asian_borough[ , c(1,6:ncol(pp_asian_borough))], by='DISTRICT')
 pp_white_borough <- merge(borough, pp_white_borough[ , c(1,6:ncol(pp_white_borough))], by='DISTRICT')
 
-
+# Set tmap to interactive
+tmap_mode("view")
 
 
 # 4.2 ANALYSIS PRE-PROCESSING ####  
-####  A. Police Perception: Merge variables of Interest (4) #### 
+####  A. Police Perception: Merge variables of Interest (4F) #### 
 ### goodjob, fair, listens, mean by ALL & race (black, asian, white)
 ### What is fairSS for PP_borough race datasets?
 pp_df <- merge(pp_borough, pp_black_borough[ , c(1,6:ncol(pp_black_borough))], by='DISTRICT')
@@ -79,14 +73,23 @@ pp_df <- merge(pp_df, pp_white_borough[ , c(1,6:ncol(pp_white_borough))], by='DI
 names(pp_df@data)[1] <- "BOROUGH" # change name of spatial delineation (col1) to match ward
 
 ####  B. Stop & Search: Merge variables of Interest (6) #### 
-### ss_occurance by ALL, race (black, asian, white) and gender (male, female)
-ss_df <- ss_ward2
+### ss_occurance by ALL, race (black, asian, white)
+
+ss_df <- merge(ss_ward2, ss_ward2_white, by='NAME')
+ss_df <- merge(ss_df, ss_ward2_black, by='NAME')
+ss_df <- merge(ss_df, ss_ward2_asian, by='NAME')
+ss_df <- merge(ss_df, ss_ward2_chinese_other, by='NAME')
+ss_df <- merge(ss_df, ss_ward2_mixed, by='NAME')
+ss_df@data[is.na(ss_df@data)] <- 0
+
 
 ####  C. Crime: Variables of Interest (4) #### 
-### crime_occurance by ALL, type (anti-social behaviour, violence & sexual offense, all theft)
-crime_df <- crime_ward
+### crime_occurance by ALL, type (anti-social behaviour)
+crime_df <- merge(crime_ward, crime_ward_asb, by='NAME')
+crime_df@data[is.na(crime_df@data)] <- 0
 
-####  D. Combine All For Analysis #### 
+
+####  D. Combine All Datasets For Analysis #### 
 reg_df <- merge(crime_df, ss_df, by='NAME')
 reg_df <- merge(reg_df, station_ward, by='NAME')
 reg_df <- merge(reg_df, pop_ward, by='NAME')
@@ -106,6 +109,9 @@ rownames(reg_df@data) <- seq(length=nrow(reg_df@data))
 # tm_shape(reg_df)+tm_polygons("police_station_occurance", palette="-RdBu", style="quantile")
 # tm_shape(reg_df)+tm_polygons("Population_Density_km2_2013", palette="-RdBu", style="quantile")
 # tm_shape(reg_df)+tm_polygons("PP_ALL_MEAN", palette="-RdBu", style="quantile")
+
+# Remove all environment objects except those of interest to this analysis
+rm(list=ls()[! ls() %in% c('crime_df', 'ss_df', 'pp_df', 'pop_ward', 'station_ward', 'reg_df', 'borough', 'ward', 'proj')])
 
 # 4.3 LINEAR REGRESSION ####
 
@@ -246,6 +252,7 @@ tm_shape(reg_df)+tm_polygons("ppss_ESreg.fit", style="quantile")
 
 
 #### FINAL MODEL ####
+
 x <- lm(ss_occurance~crime_occurance
         +ALL_mean
         +BLACK_mean
@@ -269,18 +276,51 @@ summary(x)
 reg_df$x.res <- residuals(x)
 tm_shape(reg_df)+tm_polygons("x.res", palette="-RdBu", style="quantile")
 
-# Check distribution for normality
+# Check distribution for normality - GOOD
 ggplot(data=reg_df@data, aes(x.res)) + geom_histogram(bins=30)
 
-# QQ-plot of linear model residuals
+# QQ-plot of linear model residuals - GOOD
 ggplot(data=reg_df@data, aes(sample=x.res)) + geom_qq() + geom_qq_line()
 
-# Residal Autocorrelation
+# Linear Regression Scatterplot - GOOD
+plot(reg_df@data$ss_occurance, reg_df@data$crime_occurance)
+abline(x)
+
+# Residual Autocorrelation
 lm.morantest(x, reg_W, zero.policy = TRUE) # significant auto-correlation present
 
 # Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
 lm.LMtests(x, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation insignificant
 lm.LMtests(x, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
 
-# Do a durbin regression
+# ERROR REGRESSION
+x <- errorsarlm(ss_occurance~crime_occurance
+        +ALL_mean
+        +BLACK_mean
+        +ASIAN_mean
+        +WHITE_mean
+        +Mean_Popuation_Age_2013
+        +Population_Density_km2_2013
+        +Mortality_Ratio_2013
+        +Life_Expectancy_2013
+        +Median_House_Prices_2013
+        +Mean_Household_Income_2013
+        +Total_crime_rate_2013
+        +Ethnic_Group_White_2013
+        +Ethnic_Group_Asian_2013
+        +Ethnic_Group_Black_2013
+        +police_station_occurance, data=reg_df@data, listw=reg_W)
 
+summary(x)
+summary(x)$adj.r.squared
+
+
+# For every crime occurrence, there is 0.12 more stop and search (sig)
+
+reg_df$ssc_ESreg.res <- residuals(ssc_ESreg)
+reg_df$ssc_ESreg.fit <- exp(fitted.values(ssc_ESreg))
+# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_histogram(bins=30)
+# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_qq() + geom_qq_line()
+tm_shape(reg_df)+tm_polygons("ssc_ESreg.res", palette="-RdBu", style="quantile")
+tm_shape(reg_df)+tm_polygons("ssc_ESreg.fit", style="quantile")
+# CHECK: Is all spatial autocorelation accounted for?
