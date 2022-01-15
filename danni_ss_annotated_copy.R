@@ -4,9 +4,8 @@
 # Date: 22 January 2022
 
 
-install.packages('tidyverse')
-install.packages('spatialEco')
-
+# install.packages('tidyverse')
+# install.packages('spatialEco')
 
 # Load Packages
 library(tmap)
@@ -16,7 +15,6 @@ library(rgdal)
 library(tidyverse)
 library(leaflet)
 library(spatialEco)
-install.packages("spatialEco")
 library(dplyr)
 library(plyr)
 library(forcats)
@@ -24,20 +22,21 @@ library(knitr)
 library(spdep)
 library(gstat)
 
+setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
 #### 1. LOAD DATA ####
 # Open csv files
-ss <- read.csv(file='./2016-06-metropolitan-stop-and-search.csv')
-crime <- read.csv(file='./2016-06-metropolitan-street.csv')
-pp <- read.csv(file='./2016-police-perceptions.csv')
+ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
+crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
+pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 
 
 # Open shape files
 proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"  # projection info
-borough <- readOGR(dsn="./London_Shapefiles/London_Borough_Excluding_MHW.shp") # read shp file
+borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp") # read shp file
 borough <- spTransform(borough, CRS(proj)) #transform shapefile to CRS
 names(borough@data)[1] <- "DISTRICT" # Rename first column to 'district'
-ward <- readOGR(dsn="./London_Shapefiles/London_Ward.shp") # .shp for individual wards
+ward <- readOGR(dsn="Data/London_Shapefiles/London_Ward.shp") # .shp for individual wards
 ward <- spTransform(ward, CRS(proj)) 
 
 
@@ -207,7 +206,7 @@ ss_ward2_black <- merge(x = ward, y = ss_ag_black, all.x = FALSE)
 
 # CREATING SS_WARD_ASIAN
 ss_asian <- subset(ss@data, ss@data$Self.defined.ethnicity == "Asian or Asian British")
-head(ss_Asian)
+head(ss_asian)
 
 ss_ag_asian <- aggregate(ss_asian$NAME, list(ss_asian$NAME), length)
 names(ss_ag_asian) <- c('NAME', 'ss_occurance')
