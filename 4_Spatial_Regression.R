@@ -277,3 +277,104 @@ t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_ALL", style="quantile")
 tmap_arrange(t1,t2)
 
 
+
+#### SS_White & Crime ####
+
+durbin_model_w <- lagsarlm(ss_occurance_white~crime_occurance_ALL
+                         # RUN: different S&S outcomes
+                         # ss_occurance_ALL
+                         # ss_occurance_white
+                         # ss_occurance_black
+                         # ss_occurance_asian
+                         # CONFOUNDERS: Police perception
+                         +WHITE_mean  # pp
+                         +Mean_Popuation_Age_2013
+                         +Population_Density_km2_2013
+                         +Median_House_Prices_2013
+                         +Total_crime_rate_2013
+                         +Ethnic_Group_Black_2013,
+                         data=reg_df@data,
+                         listw=reg_W,
+                         type='mixed')
+
+summary(durbin_model_w, Nagelkerke=TRUE)
+
+# Calculate Mean Square Error (MSE) for comparisons
+mean(durbin_model_w$residuals^2) # 32.1708
+
+# # Spatial Regression Comparison
+# reg_df$durbinw_res <- residuals(durbin_model_w)
+# reg_df$durbinw_fit <- exp(fitted.values(durbin_model_w))
+# 
+# tm_shape(reg_df)+tm_polygons("durbinw_res", palette="-RdBu", style="quantile")
+# t1 <- tm_shape(reg_df)+tm_polygons("durbinw_fit", style="quantile")
+# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_white", style="quantile")
+# tmap_arrange(t1,t2)
+
+#### SS_Black & Crime ####
+
+durbin_model_b <- lagsarlm(ss_occurance_black~crime_occurance_ALL
+                           # RUN: different S&S outcomes
+                           # ss_occurance_ALL
+                           # ss_occurance_white
+                           # ss_occurance_black
+                           # ss_occurance_asian
+                           # CONFOUNDERS: Police perception
+                           +WHITE_mean  # pp
+                           +Mean_Popuation_Age_2013
+                           +Population_Density_km2_2013
+                           +Median_House_Prices_2013
+                           +Total_crime_rate_2013
+                           +Ethnic_Group_Black_2013,
+                           data=reg_df@data,
+                           listw=reg_W,
+                           type='mixed')
+
+summary(durbin_model_b, Nagelkerke=TRUE)
+
+# Calculate Mean Square Error (MSE) for comparisons
+mean(durbin_model_b$residuals^2) # 39.71099
+
+
+# # Spatial Regression Comparison
+# reg_df$durbinb_res <- residuals(durbin_model_b)
+# reg_df$durbinb_fit <- exp(fitted.values(durbin_model_b))
+# 
+# tm_shape(reg_df)+tm_polygons("durbinb_res", palette="-RdBu", style="quantile")
+# t1 <- tm_shape(reg_df)+tm_polygons("durbinb_fit", style="quantile")
+# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_black", style="quantile")
+# tmap_arrange(t1,t2)
+
+
+#### SS_Asian & Crime ####
+
+durbin_model_a <- lagsarlm(ss_occurance_asian~crime_occurance_ALL
+                           # RUN: different S&S outcomes
+                           # ss_occurance_ALL
+                           # ss_occurance_white
+                           # ss_occurance_black
+                           # CONFOUNDERS: Police perception
+                           +WHITE_mean  # pp
+                           +Mean_Popuation_Age_2013
+                           +Population_Density_km2_2013
+                           +Median_House_Prices_2013
+                           +Total_crime_rate_2013
+                           +Ethnic_Group_Black_2013,
+                           data=reg_df@data,
+                           listw=reg_W,
+                           type='mixed')
+
+summary(durbin_model_a, Nagelkerke=TRUE)
+
+# Calculate Mean Square Error (MSE) for comparisons
+mean(durbin_model_a$residuals^2) # 6.664985
+
+
+# Spatial Regression Comparison
+reg_df$durbina_res <- residuals(durbin_model_a)
+reg_df$durbina_fit <- exp(fitted.values(durbin_model_a))
+ 
+# tm_shape(reg_df)+tm_polygons("durbina_res", palette="-RdBu", style="quantile")
+# t1 <- tm_shape(reg_df)+tm_polygons("durbina_fit", style="quantile")
+# t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_asian", style="quantile")
+# tmap_arrange(t1,t2)
