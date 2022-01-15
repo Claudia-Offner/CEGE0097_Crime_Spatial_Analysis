@@ -419,6 +419,17 @@ names(crime_asb_ag) <- c('NAME', 'crime_asb_occurance')
 
 # Create polygon data from point count
 crime_ward_asb <- merge(ward, crime_asb_ag, by='NAME') 
+       
+# Violence and sexual offences
+      
+crime_vso <- subset(crime@data, crime@data$Crime.type == 'Violence and sexual offences')
+crime_ag_vso <- aggregate(crime_vso$NAME, list(crime_vso$NAME), length)
+names(crime_ag_vso) <- c('NAME', 'crime_vso_occurance')
+      
+#  Create polygon data from point count
+crime_ward_vso <- merge(x=ward, y = crime_ag_vso, by='NAME')
+
+#------------------------------------------------------------------------------------------------------------------
 
 # 1.2d Stations & Population ####
 #### Police Stations ####
