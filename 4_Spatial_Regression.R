@@ -7,19 +7,13 @@
 # To run this code, set the work directory to folder containing the provided files & data
 setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
-# CLAUDIA COMENTS:
-# What is fairSS for PP_borough race datasets?
-# Why are there missing values for PP?
-# (NEED i.e.: ss_ward2_black, ss_ward2_asian, ss_ward2_white, ss_ward2_male, ss_ward2_female)
-# (NEED i.e.:  crime_ward_antiBeh; crime_ward_offense; crime_ward_allTheft)
-# Deal with warnings (pos/neg values & sp::proj4string)
-## CREATE K NEAREST NEIGHBOURS FOR NEAREST POLICE STATION (Data cleaning)
-
-
 # 4.0 Packages & Functions####
 
 # install.packages("spatialreg")
+# install.packages("corrplot")
 library(spatialreg)
+library(corrplot)
+library(ggfortify)
 
 # FUNCTION TO REMOVE NA's IN sp DataFrame OBJECT
 #   x           sp spatial DataFrame object
@@ -113,96 +107,134 @@ rownames(reg_df@data) <- seq(length=nrow(reg_df@data))
 # Remove all environment objects except those of interest to this analysis
 rm(list=ls()[! ls() %in% c('crime_df', 'ss_df', 'pp_df', 'pop_ward', 'station_ward', 'reg_df', 'borough', 'ward', 'proj')])
 
+
 # 4.3 LINEAR REGRESSION ####
 
 # Dependent variable: The variable we are trying to predict.
 # Independent variables: The variables we are using to predict the dependent variable. They are called independent variables because they are required to independent of one another. Strong correlation between two or more independent variables is referred to as multicollinearity and can lead to unstable parameter estimates, which limits the explanatory power of the models.
 # Parameters: Parameters or coefficients are the weights of the regression model. Each independent variable has a parameter that is multiplied by its value to make a prediction.
 
+#### Crude Associations ####
+# Test the crude associations that make theoretical sense and check their adjusted-r squares
+
 # STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
-ssc_lreg <- lm(ss_occurance~crime_occurance, data=reg_df@data)
-summary(ssc_lreg)
+ssc_crude <- lm(ss_occurance_ALL~crime_occurance_ALL, data=reg_df@data)
+summary(ssc_crude)
 # For every crime occurrence, there is 0.12 more stop and search (sig)
-# Model accounts for 50% of data variance
+# Model accounts for 50% of data variance - INTERESTING
 
 # POLICE PERCEPTIONS (outcome/dependent) ~ CRIME (independent)
-ppc_lreg <- lm(PP_ALL_MEAN~crime_occurance, data=reg_df@data)
-summary(ppc_lreg)
-# For every crime occurrence, there is -0.003 lower police perception (insig)
-# Model accounts for 0.002 of data variance
+ppc_crude <- lm(PP_ALL_MEAN~crime_occurance_ALL, data=reg_df@data)
+summary(ppc_crude)
+# Model accounts for 0.002 of data variance - NOT OF INTEREST
 
 # POLICE PERCEPTIONS (outcome/dependent) ~ STOP AND SEARCH (independent)
-ppss_lreg <- lm(PP_ALL_MEAN~ss_occurance, data=reg_df@data)
-summary(ppss_lreg)
-# For every stop & search occurrence, there is -0.002 lower stop and search (very insig)
-# Model accounts for -0.002 of data variance
+ppss_crude <- lm(PP_ALL_MEAN~ss_occurance_ALL, data=reg_df@data)
+summary(ppss_crude)
+# Model accounts for -0.002 of data variance - NOT OF INTEREST
+
+#### Intra-variable Associations ####
+
+# Check correlations of all variables of interest
+select <- c("ss_occurance_ALL","ss_occurance_white","ss_occurance_black","ss_occurance_asian",
+            'crime_occurance_ALL', 'crime_occurance_asb',
+            'ALL_mean', 'BLACK_mean', 'ASIAN_mean', 'WHITE_mean',
+            'Mean_Popuation_Age_2013', 'Population_Density_km2_2013', 'Mortality_Ratio_2013', 'Life_Expectancy_2013', 'Median_House_Prices_2013',
+            'Mean_Household_Income_2013', 'Total_crime_rate_2013','Ethnic_Group_White_2013', 'Ethnic_Group_Asian_2013', 'Ethnic_Group_Black_2013',
+            'police_station_occurance')
+reg_cor <- cor(reg_df@data[select])
+palette = colorRampPalette(c("red", "white", "blue")) (20)
+heatmap(x = reg_cor, col = palette, symm = TRUE)
+
+# Identify which variables have significant associations with ss_occurance_ALL and crime_occurance_ALL
+
+# Effect Modifiers: SS ethnicity and crime type 
+# Potential confounders:  
+# WHITE_mean, Mean_Popuation_Age_2013, Population_Density_km2_2013, Mortality_Ratio_2013
+# Life_Expectancy_2013, Median_House_Prices_2013, Total_crime_rate_2013, 
+# Ethnic_Group_Black_2013, police_station_occurance
+
+#### Model Building ####
+
+# Add each variable one at a time to check confounding effects against crude association
+
+# Check all potential confounders 
+lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL,
+               # RUN: different S&S outcomes
+               # +ss_occurance_white
+               # +ss_occurance_black
+               # +ss_occurance_asian
+               # +crime_occurance_asb
+               # CONFOUNDERS
+               # +WHITE_mean,  # CONFOUNDER
+               # +Mean_Popuation_Age_2013,  # CONFOUNDER
+               # +Population_Density_km2_2013,  # CONFOUNDER
+               # +Mortality_Ratio_2013,  # no change from crude - REMOVE
+               # +Life_Expectancy_2013,  # no change from crude - REMOVE
+               # +Median_House_Prices_2013, # CONFOUNDER 
+               # +Total_crime_rate_2013,  # CONFOUNDER 
+               # +Ethnic_Group_Black_2013,   # CONFOUNDER 
+               # CONTROLS: Police Stations
+               # +police_station_occurance,  # no change from crude - REMOVE
+               data=reg_df@data)
+        
+summary(lm_model)
+
+#### Final Linear Model ####
+
+# Check all potentially influential variables and select those of moderate- highly significant (p=<0.10)
+lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL
+               # RUN: different S&S outcomes
+               # ss_occurance_ALL
+               # ss_occurance_white
+               # ss_occurance_black
+               # ss_occurance_asian
+               # +crime_occurance_asb
+               # CONFOUNDERS: Police perception
+               +WHITE_mean  # pp
+               +Mean_Popuation_Age_2013
+               +Population_Density_km2_2013
+               +Median_House_Prices_2013
+               +Total_crime_rate_2013
+               +Ethnic_Group_Black_2013,
+               data=reg_df@data)
+
+summary(lm_model)
+
+# Calculate Mean Square Error (MSE) for comparisons
+mean(lm_model$residuals^2) #170.7308
 
 # 4.4 TESTING ERRORS FOR SPATIAL AUTOCORRELATION ####
 
 # Create spatial weight matrix (without missing data)
-# zero.policy handles empty neighbors - DO NOT REMOVE
 reg_W <- nb2listw(poly2nb(reg_df, queen=T),  style="W", zero.policy=T) 
 
-#### A. STOP AND SEARCH (dependent) ~ CRIME (independent) ####
+# Check Assumptions: fitted residuals, QQ-plot, scale-location, residual leverage
+autoplot(lm_model)
 
-# Linear model residuals
-reg_df$ssc_lreg.res <- residuals(ssc_lreg)
-tm_shape(reg_df)+tm_polygons("ssc_lreg.res", palette="-RdBu", style="quantile")
+# Residuals vs Fitted: Used to check the linear relationship assumptions. 
+  # A horizontal line, without distinct patterns is an indication for a linear relationship, which is good.
+# Normal Q-Q: Used to examine whether the residuals are normally distributed. 
+  # It’s good if residuals points follow the straight dashed line.
+# Scale-Location: Used to check the homogeneity of variance of the residuals (homoscedasticity). 
+  # Horizontal line with equally spread points is a good indication of homoscedasticity. This is not the case in our example, where we have a heteroscedasticity problem.
+# Residuals vs Leverage: Used to identify influential cases, that is extreme values that might influence 
+  # the regression results when included or excluded from the analysis. 
 
-# Check distribution for normality
-ggplot(data=reg_df@data, aes(ssc_lreg.res)) + geom_histogram(bins=30)
+# Plot model residuals
+reg_df$lm_res <- residuals(lm_model)
+tm_shape(reg_df)+tm_polygons("lm_res", palette="-RdBu", style="quantile")
 
-# QQ-plot of linear model residuals
-ggplot(data=reg_df@data, aes(sample=ssc_lreg.res)) + geom_qq() + geom_qq_line()
+# RESULT: Assumptions are violated, but this could be due to spatial components
 
-# Residal Autocorrelation
-lm.morantest(ssc_lreg, reg_W, zero.policy = TRUE) # significant auto-correlation present
+# Residual Autocorrelation
+lm.morantest(lm_model, reg_W, zero.policy = TRUE) # significant auto-correlation present
 
-# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
-lm.LMtests(ssc_lreg, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation insignificant
-lm.LMtests(ssc_lreg, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
+# Identify type of Autocorrelation (is spatial error or spatial lag model better?)
+lm.LMtests(lm_model, reg_W, test="RLMlag", zero.policy = TRUE) # lag Autocorrelation significant
+lm.LMtests(lm_model, reg_W, test="RLMerr", zero.policy = TRUE) # error Autocorrelation significant
+# Requires a Durbin spatial regression
 
-
-
-#### B. POLICE PERCEPTIONS (dependent) ~ CRIME (independent) ####
-
-# Linear model residuals
-reg_df$ppc_lreg.res <- residuals(ppc_lreg)
-tm_shape(reg_df)+tm_polygons("ppc_lreg.res", palette="-RdBu", style="quantile")
-
-# Check distribution for normality
-ggplot(data=reg_df@data, aes(ppc_lreg.res)) + geom_histogram(bins=30)
-
-# QQ-plot of linear model residuals
-ggplot(data=reg_df@data, aes(sample=ppc_lreg.res)) + geom_qq() + geom_qq_line()
-
-# Residal Autocorrelation
-lm.morantest(ppc_lreg, reg_W, zero.policy = TRUE) # significat autocorrelatoin present
-
-# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
-lm.LMtests(ppc_lreg, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation insignificant
-lm.LMtests(ppc_lreg, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
-
-
-
-#### C. POLICE PERCEPTIONS (dependent) ~ STOP AND SEARCH (independent) ) ####
-
-# Linear model residuals
-reg_df$ppss_lreg.res <- residuals(ppss_lreg)
-tm_shape(reg_df)+tm_polygons("ppss_lreg.res", palette="-RdBu", style="quantile")
-
-# Check distribution for normality
-ggplot(data=reg_df@data, aes(ppss_lreg.res)) + geom_histogram(bins=30)
-
-# QQ-plot of linear model residuals
-ggplot(data=reg_df@data, aes(sample=ppss_lreg.res)) + geom_qq() + geom_qq_line()
-
-# Residal Autocorrelation
-lm.morantest(ppss_lreg, reg_W, zero.policy = TRUE) # significant autocorrelation present
-
-# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
-lm.LMtests(ppss_lreg, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation insignificant
-lm.LMtests(ppss_lreg, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
 
 # 4.5 SPATIAL REGRESSION ####
 
@@ -211,116 +243,37 @@ lm.LMtests(ppss_lreg, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorr
 # Spatial Durbin Model: is a spatial lag model that assumes autocorrelation may be present in one or more independent variables, as well as the dependent variable
 # ASSUMPTIONS: the level of autocorrelation is constant across the study area, such that it can be modelled using a single parameter.
 
-# Error Testing indicates that a Spatial Error Model should be used for formulas A & C 
-# B was not spatially (or linearly) significant for either so is not included
 
-# STOP AND SEARCH (outcome/dependent) ~ CRIME (independent)
-ssc_ESreg <- errorsarlm(ss_occurance~crime_occurance, data=reg_df@data, listw=reg_W)
-summary(ssc_ESreg)
-# For every crime occurrence, there is 0.12 more stop and search (sig)
+durbin_model <- lagsarlm(ss_occurance_ALL~crime_occurance_ALL
+                         # RUN: different S&S outcomes
+                         # ss_occurance_ALL
+                         # ss_occurance_white
+                         # ss_occurance_black
+                         # ss_occurance_asian
+                         # +crime_occurance_asb
+                         # CONFOUNDERS: Police perception
+                         +WHITE_mean  # pp
+                         +Mean_Popuation_Age_2013
+                         +Population_Density_km2_2013
+                         +Median_House_Prices_2013
+                         +Total_crime_rate_2013
+                         +Ethnic_Group_Black_2013,
+                         data=reg_df@data,
+                         listw=reg_W,
+                         type='mixed')
 
-reg_df$ssc_ESreg.res <- residuals(ssc_ESreg)
-reg_df$ssc_ESreg.fit <- exp(fitted.values(ssc_ESreg))
-# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_histogram(bins=30)
-# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_qq() + geom_qq_line()
-tm_shape(reg_df)+tm_polygons("ssc_ESreg.res", palette="-RdBu", style="quantile")
-tm_shape(reg_df)+tm_polygons("ssc_ESreg.fit", style="quantile")
-# CHECK: Is all spatial autocorelation accounted for?
+summary(durbin_model, Nagelkerke=TRUE)
 
+# Calculate Mean Square Error (MSE) for comparisons
+mean(durbin_model$residuals^2) # 156.6166
 
-# POLICE PERCEPTIONS (outcome/dependent) ~ STOP AND SEARCH (independent)
-ppss_ESreg <- errorsarlm(PP_ALL_MEAN~ss_occurance, data=reg_df@data, listw=reg_W)
-summary(ppss_ESreg)
-# For every stop & search occurrence, there is -0.01 lower police perception (marginally insig)
+# Spatial Regression Comparison
+reg_df$durbin_res <- residuals(durbin_model)
+reg_df$durbin_fit <- exp(fitted.values(durbin_model))
 
-reg_df$ppss_ESreg.res <- residuals(ppss_ESreg)
-reg_df$ppss_ESreg.fit <- exp(fitted.values(ppss_ESreg))
-# ggplot(data=reg_df@data, aes(ppss_ESreg.res)) + geom_histogram(bins=30)
-# ggplot(data=reg_df@data, aes(ppss_ESreg.res)) + geom_qq() + geom_qq_line()
-tm_shape(reg_df)+tm_polygons("ppss_ESreg.res", palette="-RdBu", style="quantile")
-tm_shape(reg_df)+tm_polygons("ppss_ESreg.fit", style="quantile")
-
-
-
-#### Geographically Weighted Regression ####
-# Geographically weighted regression (GWR) is a method for analysing spatially varying relationships (C. Brunsdon, Fotheringham, and Charlton 1998).
-# The method attempts to model heterogeneity using geographically varying regression coefficients. 
-# This enables maps of the coefficients to be produced, which can provide insights into how the relationship between the dependent and independent variables varies across space.
-
-#### Regression Kriging ####
-# Regression Kriging is an approach that combines Kriging interpolation with regression modelling. In simple terms, the values of a process at unknown locations are interpolated as the sum of a linear regression model and an interpolated residual
+tm_shape(reg_df)+tm_polygons("durbin_res", palette="-RdBu", style="quantile")
+t1 <- tm_shape(reg_df)+tm_polygons("durbin_fit", style="quantile")
+t2 <- tm_shape(reg_df)+tm_polygons("ss_occurance_ALL", style="quantile")
+tmap_arrange(t1,t2)
 
 
-#### FINAL MODEL ####
-
-x <- lm(ss_occurance~crime_occurance
-        +ALL_mean
-        +BLACK_mean
-        +ASIAN_mean
-        +WHITE_mean
-        +Mean_Popuation_Age_2013
-        +Population_Density_km2_2013
-        +Mortality_Ratio_2013
-        +Life_Expectancy_2013
-        +Median_House_Prices_2013
-        +Mean_Household_Income_2013
-        +Total_crime_rate_2013
-        +Ethnic_Group_White_2013
-        +Ethnic_Group_Asian_2013
-        +Ethnic_Group_Black_2013
-        +police_station_occurance, data=reg_df@data)
-
-summary(x)
-
-# Linear model residuals
-reg_df$x.res <- residuals(x)
-tm_shape(reg_df)+tm_polygons("x.res", palette="-RdBu", style="quantile")
-
-# Check distribution for normality - GOOD
-ggplot(data=reg_df@data, aes(x.res)) + geom_histogram(bins=30)
-
-# QQ-plot of linear model residuals - GOOD
-ggplot(data=reg_df@data, aes(sample=x.res)) + geom_qq() + geom_qq_line()
-
-# Linear Regression Scatterplot - GOOD
-plot(reg_df@data$ss_occurance, reg_df@data$crime_occurance)
-abline(x)
-
-# Residual Autocorrelation
-lm.morantest(x, reg_W, zero.policy = TRUE) # significant auto-correlation present
-
-# Identify type of Autocorrelatoin (is spatial error or spatial lag model better?)
-lm.LMtests(x, reg_W, test="RLMlag", zero.policy = TRUE) # lag autocorrelation insignificant
-lm.LMtests(x, reg_W, test="RLMerr", zero.policy = TRUE) # error autocorrelation significant
-
-# ERROR REGRESSION
-x <- errorsarlm(ss_occurance~crime_occurance
-        +ALL_mean
-        +BLACK_mean
-        +ASIAN_mean
-        +WHITE_mean
-        +Mean_Popuation_Age_2013
-        +Population_Density_km2_2013
-        +Mortality_Ratio_2013
-        +Life_Expectancy_2013
-        +Median_House_Prices_2013
-        +Mean_Household_Income_2013
-        +Total_crime_rate_2013
-        +Ethnic_Group_White_2013
-        +Ethnic_Group_Asian_2013
-        +Ethnic_Group_Black_2013
-        +police_station_occurance, data=reg_df@data, listw=reg_W)
-
-summary(x)
-summary(x)$adj.r.squared
-
-
-# For every crime occurrence, there is 0.12 more stop and search (sig)
-
-reg_df$ssc_ESreg.res <- residuals(ssc_ESreg)
-reg_df$ssc_ESreg.fit <- exp(fitted.values(ssc_ESreg))
-# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_histogram(bins=30)
-# ggplot(data=reg_df@data, aes(ssc_ESreg.res)) + geom_qq() + geom_qq_line()
-tm_shape(reg_df)+tm_polygons("ssc_ESreg.res", palette="-RdBu", style="quantile")
-tm_shape(reg_df)+tm_polygons("ssc_ESreg.fit", style="quantile")
-# CHECK: Is all spatial autocorelation accounted for?
