@@ -415,9 +415,11 @@ typeof(updated_crime)
 #----------------------------------------------------------------------------
 # Anti-social behaviour
 asb <- subset(crime@data, crime@data$Crime.type == 'Anti-social behaviour')
-asb
-      
+crime_asb_ag <- aggregate(asb$NAME, list(asb$NAME), length)
+names(crime_asb_ag) <- c('NAME', 'crime_asb_occurance')
 
+# Create polygon data from point count
+crime_ward_asb <- merge(ward, crime_asb_ag, by='NAME') 
 
 # 1.2d Stations & Population ####
 #### Police Stations ####
