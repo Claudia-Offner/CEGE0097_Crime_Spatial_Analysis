@@ -5,8 +5,8 @@
 # Date: 22 JANUARY 2022
 
 # To run this code, set the work directory to folder containing the provided data.
-#setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
-setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
+setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
+# setwd('C:\\Users\\Tommy\\OneDrive - University College London\\Modules-Notebooks\\CEGE0097_Geocomputation\\Assignment')
 
 # Load Packages
 library(tmap)
@@ -20,18 +20,16 @@ library(dplyr)
 library(plyr) # This must follow dplyr for 'count' method to work!
 library(spdep) # for poly2nb & nb2listw
 # NOTE: Make sure all of your necessary pre-processing is done here (not in 2_Non_Spatial_EDA)
-tmap_mode("view")
+tmap_mode("view") # 'plot' for static
 
 # 1.1 LOAD DATA ####
+
 # Open CRIME csv files
 ss <- read.csv(file='Data/2016-06-metropolitan-stop-and-search.csv', fileEncoding="UTF-8-BOM")
 crime <- read.csv(file='Data/2016-06-metropolitan-street.csv', fileEncoding="UTF-8-BOM")
 pp <- read.csv(file='Data/2016-police-perceptions.csv', fileEncoding="UTF-8-BOM")
 pp_wab <- read.csv(file='Data/2015-16 _to_2020-21_inclusive_neighbourhood_indicators_final_221221.csv') # wab = white, asian, black
-ethnicity_by_borough <- read.csv(file='Data/ethnic-groups-by-borough.csv') # https://data.london.gov.uk/dataset/ethnic-groups-borough
-ldn_oa <- readOGR(dsn="Data/London_Shapefiles/OA_2011_London_gen_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
-ldn_b <- readOGR(dsn = "Data/London_Shapefiles/London_Borough_Excluding_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
-ldneth <- read.csv(file='Data/bulk.csv', stringsAsFactors = F, check.names = F) %>% select(geography, "Ethnic Group: White; measures: Value", "Ethnic Group: Asian/Asian British; measures: Value", "Ethnic Group: Black/African/Caribbean/Black British; measures: Value")
+
 
 # Open shape files
 proj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0" #set projections
@@ -42,9 +40,17 @@ borough <- readOGR(dsn="Data/London_Shapefiles/London_Borough_Excluding_MHW.shp"
 borough <- spTransform(borough, CRS(proj))
 names(borough@data)[1] <- "DISTRICT" # change name of spatial delineation (col1) to match ward
 
+# Tommy Shapefiles: this is a bit repeatative no? Why not use the borough shape and set project string so we are all using the same?
+# ldn_oa <- readOGR(dsn="Data/London_Shapefiles/OA_2011_London_gen_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+# ldn_b <- readOGR(dsn = "Data/London_Shapefiles/London_Borough_Excluding_MHW.shp") %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+
 # Open OTHER csv files (controlled variables for regression - both with data from 2013)
 stations <- read.csv(file='Data/2013_police_counters.csv', fileEncoding="UTF-8-BOM")
 pop <- read.csv(file='Data/2013_ward_atlas_data.csv')
+
+# Tommy: https://data.london.gov.uk/dataset/ethnic-groups-borough
+# This file is more complicated than the population ethnicity stats I pulled - look at the pop df
+ethnicity_by_borough <- read.csv(file='Data/ethnic-groups-by-borough.csv', stringsAsFactors = F, check.names = F) %>% select(geography, "Ethnic Group: White; measures: Value", "Ethnic Group: Asian/Asian British; measures: Value", "Ethnic Group: Black/African/Caribbean/Black British; measures: Value")
 
 # 1.2 GENERAL DATA CLEANING & AGGREGATION ####
 
@@ -119,7 +125,6 @@ pp <- pp[ , c('neighbourhood','grouping',
               'fairSS_w', 'fairSS_a', 'fairSS_b')] 
 
 ### change fields to numeric where necessary
-view(pp)
 names <- colnames(pp)[-1]
 pp[ ,names] <- apply(pp[ , names], 2, function(x) as.numeric(as.character(x)))  # characters to numeric
 
@@ -155,29 +160,29 @@ pp_ag_borough <- rapply(pp_ag_borough, f = round, classes = "numeric", how = "re
 pp_ag_borough <- pp_ag_borough[!pp_ag_borough$DISTRICT %in% omit_boroughs[[1]], ]                   # omit boroughs where over 25% it's neighbourhoods were NA
 
 ### calculate and append ethnicity population rank per borough
-names(ethnicity_by_borough)[names(ethnicity_by_borough) == "ï..DISTRICT"] <- "DISTRICT"         # remove special characters
-ethnicity_by_borough <- ethnicity_by_borough[-c(6)]                                             # remove 'other' category
-ethnicity_by_borough$White <- as.numeric(gsub(",","",ethnicity_by_borough$White))               # remove commas and convert to numeric field
-ethnicity_by_borough$Asian <- as.numeric(gsub(",","",ethnicity_by_borough$Asian))
-ethnicity_by_borough$Black <- as.numeric(gsub(",","",ethnicity_by_borough$Black))
-ethnicity_by_borough$Total <- as.numeric(gsub(",","",ethnicity_by_borough$Total))
-ethnicity_by_borough$perc_w <- with(ethnicity_by_borough, White / Total * 100)                  # calculate percentage of overall population
-ethnicity_by_borough$perc_a <- with(ethnicity_by_borough, Asian / Total * 100)
-ethnicity_by_borough$perc_b <- with(ethnicity_by_borough, Black / Total * 100)
-ethnicity_by_borough$rank_w[order(-ethnicity_by_borough$White)] <- 1:nrow(ethnicity_by_borough) # rank percentage
-ethnicity_by_borough$rank_a[order(-ethnicity_by_borough$Asian)] <- 1:nrow(ethnicity_by_borough)
-ethnicity_by_borough$rank_b[order(-ethnicity_by_borough$Black)] <- 1:nrow(ethnicity_by_borough)
-ethnicity_by_borough <- ethnicity_by_borough[c('DISTRICT', 'perc_w','perc_a', 'perc_b', 'rank_w','rank_a', 'rank_b')]        # retain only rank
+names(ethnicity_by_borough)[names(ethnicity_by_borough) == "?..DISTRICT"] <- "DISTRICT"         # remove special characters
+# ethnicity_by_borough <- ethnicity_by_borough[-c(6)]                                             # remove 'other' category
+# ethnicity_by_borough$White <- as.numeric(gsub(",","",ethnicity_by_borough$White))               # remove commas and convert to numeric field
+# ethnicity_by_borough$Asian <- as.numeric(gsub(",","",ethnicity_by_borough$Asian))
+# ethnicity_by_borough$Black <- as.numeric(gsub(",","",ethnicity_by_borough$Black))
+# ethnicity_by_borough$Total <- as.numeric(gsub(",","",ethnicity_by_borough$Total))
+# ethnicity_by_borough$perc_w <- with(ethnicity_by_borough, White / Total * 100)                  # calculate percentage of overall population
+# ethnicity_by_borough$perc_a <- with(ethnicity_by_borough, Asian / Total * 100)
+# ethnicity_by_borough$perc_b <- with(ethnicity_by_borough, Black / Total * 100)
+# ethnicity_by_borough$rank_w[order(-ethnicity_by_borough$White)] <- 1:nrow(ethnicity_by_borough) # rank percentage
+# ethnicity_by_borough$rank_a[order(-ethnicity_by_borough$Asian)] <- 1:nrow(ethnicity_by_borough)
+# ethnicity_by_borough$rank_b[order(-ethnicity_by_borough$Black)] <- 1:nrow(ethnicity_by_borough)
+# ethnicity_by_borough <- ethnicity_by_borough[c('DISTRICT', 'perc_w','perc_a', 'perc_b', 'rank_w','rank_a', 'rank_b')]        # retain only rank
 
 # merge datasets
-pp_ag_borough <- merge(pp_ag_borough, ethnicity_by_borough, by='DISTRICT') # merge ethnicity rankings to borough-level dataset
+# pp_ag_borough <- merge(pp_ag_borough, ethnicity_by_borough, by='DISTRICT') # merge ethnicity rankings to borough-level dataset
 pp_ag_borough <- pp_ag_borough[sample(nrow(pp_ag_borough)),]               # shuffle
 pp_ag_borough_shp <- merge(borough, pp_ag_borough, by='DISTRICT')          # merge borough-level dataset to borough shapefile                                   
 pp_ag_borough <- pp_ag_borough_shp[sample(nrow(pp_ag_borough_shp)),]
 
 # pp datasets to use further along the project pipeline
-view(pp_ag_borough)     # for df version
-view(pp_ag_borough_shp) # for sdf version
+# view(pp_ag_borough)     # for df version
+# view(pp_ag_borough_shp) # for sdf version
 
 
 # 1.2b Stop and Search #### 
@@ -380,7 +385,7 @@ names(crime_ward)[8] <- "crime_occurance_ALL"
 
 # Add pp_mean to ss and crime datasets
 names(crime)[11] <- "DISTRICT" 
-crime <- merge(crime, pp_mean, by='DISTRICT') 
+# crime <- merge(crime, pp_mean, by='DISTRICT') 
 
 # There is no police perception data for city of London, so drop these points :(
 sapply(crime@data, function(x) sum(is.na(x)))
@@ -428,7 +433,7 @@ names(crime_ag_vso) <- c('NAME', 'crime_vso_occurance')
 #  Create polygon data from point count
 crime_ward_vso <- merge(x=ward, y = crime_ag_vso, by='NAME')
 
-#----------------------------------------------------------------------------
+
 
 # 1.2d Stations & Population ####
 #### Police Stations ####
