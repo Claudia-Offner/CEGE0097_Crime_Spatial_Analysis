@@ -461,19 +461,3 @@ t2 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
 tmap_arrange(t1,t2)
 
 
-# EXPORT RESULTS ####
-
-# summary(lm_model)->SM1
-# summary(durbin_model)->SM2
-# summary(durbin_model_w)->SM3
-# summary(durbin_model_b)->SM4
-# summary(durbin_model_a)->SM5
-# 
-# Coef_LM <- rbind(lm_model=SM1$coefficients)
-# Coef_SM <- t(rbind(durbin_model=SM2$coefficients,"",durbin_model_w=SM3$coefficients,"", durbin_model_b=SM4$coefficients,"", durbin_model_a=SM5$coefficients))
-# # Export
-# write.table(Coef_LM, "Data/Coef_LM.csv", row.names = F, quote=FALSE)
-# write.table(Coef_LM, "Data/Coef_LM.csv", row.names = F, quote=FALSE)
-# 
-
-
