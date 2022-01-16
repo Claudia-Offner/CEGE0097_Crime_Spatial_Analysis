@@ -7,8 +7,6 @@
 # To run this code, set the work directory to folder containing the provided files & data
 setwd('C:/Users/offne/Documents/GitHub/CEGE0097_Crime_Spatial_Analysis')
 
-tmap_mode("view") # 'plot' for static
-
 # 4.0 Packages & Functions####
 
 # install.packages("spatialreg")
@@ -16,6 +14,7 @@ tmap_mode("view") # 'plot' for static
 library(spatialreg)
 library(corrplot)
 library(ggfortify)
+library(tmap)
 
 # FUNCTION TO REMOVE NA's IN sp DataFrame OBJECT
 #   x           sp spatial DataFrame object
@@ -149,6 +148,9 @@ reg_cor <- cor(reg_df@data[select])
 palette = colorRampPalette(c("red", "white", "blue")) (20)
 heatmap(x = reg_cor, col = palette, symm = TRUE)
 
+# Export for report
+# write.csv(reg_cor,"Data/reg_cor.csv", row.names = TRUE)
+
 # Identify which variables have significant associations with ss_occurance_ALL and crime_occurance_ALL
 
 # Effect Modifiers: SS ethnicity and crime type 
@@ -178,14 +180,15 @@ lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL,
                # +Population_Density_km2_2013,  # CONFOUNDER
                # +Mortality_Ratio_2013,  # no change from crude - REMOVE
                # +Life_Expectancy_2013,  # no change from crude - REMOVE
-               # +Median_House_Prices_2013, # CONFOUNDER 
-               # +Total_crime_rate_2013,  # CONFOUNDER 
-               # +Ethnic_Group_Black_2013,   # CONFOUNDER 
+               # +Median_House_Prices_2013, # CONFOUNDER
+               # +Total_crime_rate_2013,  # CONFOUNDER
+               # +Ethnic_Group_Black_2013,   # CONFOUNDER
                # CONTROLS: Police Stations
                # +police_station_occurance,  # no change from crude - REMOVE
                data=reg_df@data)
         
 summary(lm_model)
+
 
 #### Final Linear Model ####
 
@@ -204,7 +207,6 @@ lm_model <- lm(ss_occurance_ALL~crime_occurance_ALL
                # CONFOUNDERS: Population
                +Mean_Popuation_Age_2013
                +Population_Density_km2_2013
-               +Median_House_Prices_2013
                +Total_crime_rate_2013
                +Ethnic_Group_Black_2013,
                data=reg_df@data)
@@ -278,7 +280,6 @@ durbin_model <- lagsarlm(ss_occurance_ALL~crime_occurance_ALL
                          # CONFOUNDERS: Population
                          +Mean_Popuation_Age_2013
                          +Population_Density_km2_2013
-                         +Median_House_Prices_2013
                          +Total_crime_rate_2013
                          +Ethnic_Group_Black_2013,
                          data=reg_df@data,
@@ -327,7 +328,6 @@ durbin_model_w <- lagsarlm(ss_occurance_white~crime_occurance_ALL
                          # CONFOUNDERS: Population
                          +Mean_Popuation_Age_2013
                          +Population_Density_km2_2013
-                         +Median_House_Prices_2013
                          +Total_crime_rate_2013
                          +Ethnic_Group_Black_2013,
                          data=reg_df@data,
@@ -352,14 +352,14 @@ tm_shape(ward)+tm_polygons(col="#D0D0D0")+
   tm_layout(main.title = 'Durbin Regression Residuals (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t1 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("ss_occurance_white",  palette="-RdBu", style='quantile', title="Quantiles (SS - White)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("ss_occurance_white",  palette="-RdBu", style='quantile', title="Quantiles (SS - White)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t2 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("durbinw_fit",  palette="-RdBu", style='quantile',title="Quantiles (SS - White)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("durbinw_fit",  palette="-RdBu", style='quantile',title="Quantiles (SS - White)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 tmap_arrange(t1,t2)
 
@@ -374,7 +374,6 @@ durbin_model_b <- lagsarlm(ss_occurance_black~crime_occurance_ALL
                            # CONFOUNDERS: Population
                            +Mean_Popuation_Age_2013
                            +Population_Density_km2_2013
-                           +Median_House_Prices_2013
                            +Total_crime_rate_2013
                            +Ethnic_Group_Black_2013,
                            data=reg_df@data,
@@ -402,14 +401,14 @@ tm_shape(ward)+tm_polygons(col="#D0D0D0")+
   tm_layout(main.title = 'Durbin Regression Residuals (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t1 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("ss_occurance_black",  palette="-RdBu", style='quantile', title="Quantiles (SS - Black)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("ss_occurance_black",  palette="-RdBu", style='quantile', title="Quantiles (SS - Black)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t2 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("durbinb_fit",  palette="-RdBu", style='quantile', title="Quantiles (SS - Black)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("durbinb_fit",  palette="-RdBu", style='quantile', title="Quantiles (SS - Black)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 tmap_arrange(t1,t2)
 
@@ -425,7 +424,6 @@ durbin_model_a <- lagsarlm(ss_occurance_asian~crime_occurance_ALL
                            # CONFOUNDERS: Population
                            +Mean_Popuation_Age_2013
                            +Population_Density_km2_2013
-                           +Median_House_Prices_2013
                            +Total_crime_rate_2013
                            +Ethnic_Group_Black_2013,
                            data=reg_df@data,
@@ -451,13 +449,31 @@ tm_shape(ward)+tm_polygons(col="#D0D0D0")+
   tm_layout(main.title = 'Durbin Regression Residuals (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t1 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("ss_occurance_asian",  palette="-RdBu", style='quantile', title="Quantiles (SS - Asian)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("ss_occurance_asian",  palette="-RdBu", style='quantile', title="Quantiles (SS - Asian)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Actual SS Occurance (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 t2 <- tm_shape(ward)+tm_polygons(col="#D0D0D0")+
-  tm_shape(reg_df)+ tm_polygons("durbina_fit",  palette="-RdBu", style='quantile', title="Quantiles (SS - Asian)", legend.show = TRUE)+
-  tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
-  tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
+      tm_shape(reg_df)+ tm_polygons("durbina_fit",  palette="-RdBu", style='quantile', title="Quantiles (SS - Asian)", legend.show = TRUE)+
+      tm_add_legend('fill', col= '#D0D0D0', labels = 'Missing')+
+      tm_layout(main.title = 'Durbin SS Predicted (London Ward Level)', main.title.size = 1.2,legend.outside = TRUE) 
 
 tmap_arrange(t1,t2)
+
+
+# EXPORT RESULTS ####
+
+# summary(lm_model)->SM1
+# summary(durbin_model)->SM2
+# summary(durbin_model_w)->SM3
+# summary(durbin_model_b)->SM4
+# summary(durbin_model_a)->SM5
+# 
+# Coef_LM <- rbind(lm_model=SM1$coefficients)
+# Coef_SM <- t(rbind(durbin_model=SM2$coefficients,"",durbin_model_w=SM3$coefficients,"", durbin_model_b=SM4$coefficients,"", durbin_model_a=SM5$coefficients))
+# # Export
+# write.table(Coef_LM, "Data/Coef_LM.csv", row.names = F, quote=FALSE)
+# write.table(Coef_LM, "Data/Coef_LM.csv", row.names = F, quote=FALSE)
+# 
+
+
