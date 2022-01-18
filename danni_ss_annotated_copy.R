@@ -464,6 +464,14 @@ ggplot(data=ss_ag, aes(ss_ag$ss_occurance)) +
   labs(title="Stop and Search occurances histogram",x="Occurance", y = "Count")
 
 
+hist(ss_ag$ss_occurance,
+     xlim= c(0, 100),
+     main = "Stop and Search occurences",
+     xlab = "occurrences",
+     border="black",
+     breaks = 10)
+
+
 # SS -> EDA : AGE DATA -------------------------------------------------------------
 
 
