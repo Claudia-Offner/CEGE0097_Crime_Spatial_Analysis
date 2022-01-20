@@ -809,6 +809,7 @@ plot(mc)
 
 ttm()
 
+# radomised image code based on: https://mgimond.github.io/simple_moransI_example/
 set.seed(131)
 ss_ward2$random1 <- sample(ss_ward2$ss_occurance, length(ss_ward2$ss_occurance), replace = FALSE)
 ss_ward2$random2 <- sample(ss_ward2$ss_occurance, length(ss_ward2$ss_occurance), replace = FALSE)
